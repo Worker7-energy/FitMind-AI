@@ -4,10 +4,12 @@ function check_email(){
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (emailRegex.test(value)){
-        alert("OK");
+        alert("Введён корректный email");
+        check_password();
         return true;
     } else {
-        alert("Неверно");
+        alert("Введён некорректный email");
+        check_password();
         return false;
     }
 }
@@ -20,18 +22,19 @@ function check_password() {
     const passwordRegex = /^.{8,}$/;
     
     if (passwordRegex.test(value)) {
-        alert("OK");
-        check_email();
+        alert("Пароль подходит!");
         return true;
     } else {
         alert("Упс! Пароль должен содержать минимум 8 символов");
-        check_email();
         return false;
     }
 }
 
 document.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
-        check_password(); 
+        check_email(); 
     }
 });
+
+document.getElementById("but").addEventListener("click", check_email);
+
