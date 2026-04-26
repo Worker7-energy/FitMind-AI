@@ -1,0 +1,169 @@
+.calcul{
+    display: flex;
+    border: 2px solid rgb(192,192,192);
+    height: 50%;
+    width: 300px;
+    position: absolute;
+    left: 350px;
+}
+.tablo{
+    border: 2px solid rgb(184,115,51);
+    height: 20%;
+    width: 265px;
+    position: absolute;
+    top: 2%;
+    left: 5%;
+}
+button{
+    display: inline-table;
+}
+.keyboard{
+    display: flex;
+}
+.one{
+    display: flex;
+    position: absolute;
+    top: 70%;
+    height: 50px;
+    width: 50px;
+}
+.two{
+    display: flex;
+    position: absolute;
+    top: 70%;
+    left: 20%;
+    height: 50px;
+    width: 50px;
+}
+.three{
+    display: flex;
+    position: absolute;
+    top: 70%;
+    left: 40%;
+    height: 50px;
+    width: 50px;
+}
+.four{
+    display:flex;
+    position: absolute;
+    top: 55%;
+    height: 50px;
+    width: 50px;
+}
+.five{
+    display: flex;
+    position: absolute;
+    top: 55%;
+    left: 20%;
+    height: 50px;
+    width: 50px;
+}
+.six{
+    display: flex;
+    position: absolute;
+    top: 55%;
+    left: 40%;
+    height: 50px;
+    width: 50px;
+}
+.seven{
+    display: flex;
+    position: absolute;
+    top: 40%;
+    height: 50px;
+    width: 50px;
+}
+.eight{
+    display: flex;
+    position: absolute;
+    top: 40%;
+    left: 20%;
+    height: 50px;
+    width: 50px;
+}
+.nine{
+    display: flex;
+    position: absolute;
+    top: 40%;
+    left: 40%;
+    height: 50px;
+    width: 50px;
+}
+.zero{
+    display: flex;
+    position: absolute;
+    top: 85%;
+    left: 20%;
+    height: 50px;
+    width: 50px;
+}
+.delen{
+    display: flex;
+    position: absolute;
+    top: 25%;
+    left: 60%;
+    height: 50px;
+    width: 50px;
+
+}
+.umnog{
+    display: flex;
+    position: absolute;
+    top: 40%;
+    left: 60%;
+    height: 50px;
+    width: 50px;
+
+}
+.razn{
+    display: flex;
+    position: absolute;
+    top: 55%;
+    left: 60%;
+    height: 50px;
+    width: 50px;
+
+}
+.sum{
+    display: flex;
+    position: absolute;
+    top: 70%;
+    left: 60%;
+    height: 50px;
+    width: 50px;
+
+}
+.ravno{
+    display: flex;
+    position: absolute;
+    top: 85%;
+    left: 60%;
+    height: 50px;
+    width: 50px;
+}
+.reset{
+    display: flex;
+    position: absolute;
+    top: 25%;
+    left: 20%;
+    height: 50px;
+    width: 50px;
+
+}
+.proc{
+    display: flex;
+    position: absolute;
+    top: 25%;
+    left: 40%;
+    height: 50px;
+    width: 50px;
+
+}
+.ac{
+    display: flex;
+    position: absolute;
+    top: 25%;
+    height: 50px;
+    width: 50px;
+
+}
