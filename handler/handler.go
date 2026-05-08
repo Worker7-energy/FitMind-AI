@@ -22,11 +22,15 @@ func (h *Handler) Register(c *gin.Context) {
 		Password string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
 	if err := h.service.Register(c.Request.Context(), req.Email, req.Password); err != nil {
-		c.JSON(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
 	c.JSON(200, gin.H{"status": "registered"})
@@ -69,4 +73,42 @@ func (h *Handler) Refresh(c *gin.Context) {
 		"access":  access,
 		"refresh": refresh,
 	})
+}
+func (h *Handler) GetByID(c *gin.Context) {
+	id := c.Param("id")
+	user, err := h.service.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(400, err)
+		return
+	}
+	c.JSON(200, user)
+}
+func (h *Handler) UpdateUser(c *gin.Context) {
+	userID := c.Param("id")
+	var req struct {
+		Email     string `json:"email,omitempty"`
+		Birthdate string `json:"birth_date,omitempty"`
+		Level     int16  `json:"level"`
+		Weight    int64  `json:"weight,omitempty"`
+		Height    int64  `json:"height,omitempty"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+	err := h.service.UpdateUser(c.Request.Context(), userID, req.Email, req.Birthdate, req.Level, req.Weight, req.Height)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+	c.JSON(http.StatusNoContent, nil)
+}
+
+func (h *Handler) GetAllUsers(c *gin.Context) {
+	users, err := h.service.GetAllUsers(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+	c.JSON(http.StatusOK, users)
 }

@@ -60,7 +60,7 @@ func (s *Service) Login(ctx context.Context, email, password, deviceID string) (
 	ttl := 7 * 24 * time.Hour
 	err = s.refreshStore.Save(context.Background(), user.ID, refreshToken, deviceID, ttl)
 	if err != nil {
-
+		return "", "", err
 	}
 	return accessToken, refreshToken, nil
 }
@@ -82,4 +82,14 @@ func (s *Service) Refresh(ctx context.Context, refresh, deviceID string) (string
 	}
 	_ = s.refreshStore.Del(ctx, refresh)
 	return accessToken, refreshToken, nil
+}
+func (s *Service) GetByID(ctx context.Context, id string) (models.User, error) {
+	return s.repository.GetByID(ctx, id)
+}
+func (s *Service) UpdateUser(ctx context.Context, userID, email, birthDate string, level int16, weight, height int64) error {
+	return s.repository.Update(ctx, userID, email, birthDate, level, weight, height)
+}
+
+func (s *Service) GetAllUsers(ctx context.Context) ([]models.User, error) {
+	return s.repository.GetAllUsers(ctx)
 }
