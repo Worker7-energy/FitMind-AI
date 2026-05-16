@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fitnes_app/main_module/models"
 	"fmt"
 	"strings"
 	"time"
@@ -47,4 +48,30 @@ func (r *Repository) UpdateFitnessProfile(ctx context.Context, ID string, weight
 	args = append(args, ID)
 	_, err := r.db.ExecContext(ctx, query, args...)
 	return err
+}
+func (r *Repository) GetFitnessProfile(ctx context.Context, id string) (models.FitnessProfile, error) {
+	var user models.FitnessProfile
+	err := r.db.QueryRowContext(ctx, `
+		SELECT * FROM fitness_profiles
+		WHERE id=$1
+	`, id).Scan(&user.UserID, &user.Weight, &user.Height, &user.Age, &user.Sex, &user.ActivityLevel, &user.Created_At)
+	return user, err
+}
+func (r *Repository) GetAllFitnessProfiles(ctx context.Context) ([]models.FitnessProfile, error) {
+	cursor, err := r.db.QueryContext(ctx, `
+		SELECT * FROM fitness_profiles ORDER BY id
+	`)
+	if err != nil {
+		return []models.FitnessProfile{}, err
+	}
+	defer cursor.Close()
+	var users []models.FitnessProfile
+	for cursor.Next() {
+		var user models.FitnessProfile
+		err := cursor.Scan(&user.UserID, &user.Weight, &user.Height, &user.Age, &user.Sex, &user.ActivityLevel, &user.Created_At)
+		if err != nil {
+			return []models.FitnessProfile{}, err
+		}
+	}
+	return users, nil
 }

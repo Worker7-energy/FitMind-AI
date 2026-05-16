@@ -26,6 +26,8 @@ func main() {
 		return
 	}
 	r.POST("/create_fitness_profile", authHandler.CreateFitnessProfile)
-	r.PATCH("/update_fitness_profile", authHandler.UpdateFitnessProfile)
+	r.PATCH("/fitness_profile/:id", authHandler.UpdateFitnessProfile)
+	r.GET("/fitness_profile/:id", authHandler.GetFitnessProfile)
+	r.GET("/fitness_profiles", authHandler.GetAllFitnessProfiles)
 	r.Run(":8081")
 }
