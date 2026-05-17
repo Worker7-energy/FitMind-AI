@@ -5,17 +5,16 @@ import (
 	"fitnes_app/main_module/models"
 	"fmt"
 	"strings"
-	"time"
 )
 
-func (r *Repository) CreateFitnessProfile(ctx context.Context, ID string, weight, height, age int, sex string, activityLevel int, createdAt time.Time) error {
+func (r *Repository) CreateFitnessProfile(ctx context.Context, ID string, weight, height, age int, sex string, activityLevel int, dailyCaloriesGoal int) error {
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO fitness_profiles (user_id, weight, height, age, sex, activity_level, created_at)
+		INSERT INTO fitness_profiles (user_id, weight, height, age, sex, activity_level, daily_calories_goal)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, ID, weight, height, age, sex, activityLevel, createdAt)
+	`, ID, weight, height, age, sex, activityLevel, dailyCaloriesGoal)
 	return err
 }
-func (r *Repository) UpdateFitnessProfile(ctx context.Context, ID string, weight, height, age *int, sex *string, activityLevel *int) error {
+func (r *Repository) UpdateFitnessProfile(ctx context.Context, ID string, weight, height, age *int, sex *string, activityLevel, dailyCaloriesGoal *int) error {
 	updateFields := make(map[string]interface{})
 	if weight != nil {
 		updateFields["weight"] = *weight
@@ -31,6 +30,9 @@ func (r *Repository) UpdateFitnessProfile(ctx context.Context, ID string, weight
 	}
 	if activityLevel != nil {
 		updateFields["activity_level"] = *activityLevel
+	}
+	if dailyCaloriesGoal != nil {
+		updateFields["daily_calories_goal"] = *dailyCaloriesGoal
 	}
 	if len(updateFields) == 0 {
 		return nil
@@ -49,29 +51,31 @@ func (r *Repository) UpdateFitnessProfile(ctx context.Context, ID string, weight
 	_, err := r.db.ExecContext(ctx, query, args...)
 	return err
 }
-func (r *Repository) GetFitnessProfile(ctx context.Context, id string) (models.FitnessProfile, error) {
+func (r *Repository) GetFitnessProfile(ctx context.Context, userID string) (models.FitnessProfile, error) {
 	var user models.FitnessProfile
 	err := r.db.QueryRowContext(ctx, `
-		SELECT * FROM fitness_profiles
-		WHERE id=$1
-	`, id).Scan(&user.UserID, &user.Weight, &user.Height, &user.Age, &user.Sex, &user.ActivityLevel, &user.Created_At)
+		SELECT id, user_id, weight, height, age, sex, activity_level, COALESCE(daily_calories_goal, 0), created_at
+		FROM fitness_profiles WHERE user_id=$1
+	`, userID).Scan(&user.ID, &user.UserID, &user.Weight, &user.Height, &user.Age, &user.Sex, &user.ActivityLevel, &user.DailyCaloriesGoal, &user.CreatedAt)
 	return user, err
 }
 func (r *Repository) GetAllFitnessProfiles(ctx context.Context) ([]models.FitnessProfile, error) {
-	cursor, err := r.db.QueryContext(ctx, `
-		SELECT * FROM fitness_profiles ORDER BY id
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, user_id, weight, height, age, sex, activity_level, COALESCE(daily_calories_goal, 0), created_at
+		FROM fitness_profiles ORDER BY id
 	`)
 	if err != nil {
-		return []models.FitnessProfile{}, err
+		return nil, err
 	}
-	defer cursor.Close()
+	defer rows.Close()
 	var users []models.FitnessProfile
-	for cursor.Next() {
+	for rows.Next() {
 		var user models.FitnessProfile
-		err := cursor.Scan(&user.UserID, &user.Weight, &user.Height, &user.Age, &user.Sex, &user.ActivityLevel, &user.Created_At)
+		err := rows.Scan(&user.ID, &user.UserID, &user.Weight, &user.Height, &user.Age, &user.Sex, &user.ActivityLevel, &user.DailyCaloriesGoal, &user.CreatedAt)
 		if err != nil {
-			return []models.FitnessProfile{}, err
+			return nil, err
 		}
+		users = append(users, user)
 	}
 	return users, nil
 }
