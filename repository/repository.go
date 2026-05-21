@@ -84,3 +84,21 @@ func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error)
 	}
 	return users, nil
 }
+func (r *UserRepository) FindByProviderID(ctx context.Context, providerID, providerField string) (*models.User, error) {
+	var user models.User
+	err := r.Collection.FindOne(ctx, bson.M{
+		providerField: providerID,
+	}).Decode(&user)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	return &user, err
+}
+
+func (r *UserRepository) FindByYandexID(ctx context.Context, yandexID string) (*models.User, error) {
+	return r.FindByProviderID(ctx, yandexID, "yandex_id")
+}
+
+func (r *UserRepository) FindByGoogleID(ctx context.Context, googleID string) (*models.User, error) {
+	return r.FindByProviderID(ctx, googleID, "google_id")
+}
