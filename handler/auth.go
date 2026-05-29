@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fitnes_app/main_module/ai"
 	"fitnes_app/main_module/repository"
 	"time"
 
@@ -9,10 +10,11 @@ import (
 
 type Handler struct {
 	repo *repository.Repository
+	ai   *ai.Client
 }
 
-func NewHandler(repo *repository.Repository) *Handler {
-	return &Handler{repo: repo}
+func NewHandler(repo *repository.Repository, aiClient *ai.Client) *Handler {
+	return &Handler{repo: repo, ai: aiClient}
 }
 func (h *Handler) CreateFitnessProfile(c *gin.Context) {
 	var req struct {

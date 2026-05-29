@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fitnes_app/main_module/ai"
 	"fitnes_app/main_module/handler"
 	"fitnes_app/main_module/repository"
 	"log"
@@ -29,7 +30,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	h := handler.NewHandler(repo)
+	apiKey := os.Getenv("API_KEY")
+	baseURL := os.Getenv("DEEPSEEK_BASE_URL")
+	aiModel := os.Getenv("DEEPSEEK_MODEL")
+	aiClient := ai.NewClient(apiKey, baseURL, aiModel)
+
+	h := handler.NewHandler(repo, aiClient)
 
 	// Fitness Profile
 	r.POST("/create_fitness_profile", h.CreateFitnessProfile)

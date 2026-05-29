@@ -1,5 +1,4 @@
 services:
-  # ─── Infrastructure ───────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     environment:
@@ -28,7 +27,6 @@ services:
     ports:
       - "6379:6379"
 
-  # ─── Auth Service ─────────────────────────────────────────
   auth:
     build: ../auth_module
     ports:
@@ -39,12 +37,10 @@ services:
       redis:
         condition: service_started
     env_file:
-      - ./auth_module/.env
+      - ../auth_module/.env
     environment:
       - MONGO_URI=mongodb://mongo:27017
       - REDIS_ADDR=redis:6379
-
-  # ─── Main Service ─────────────────────────────────────────
   main:
     build: .
     ports:
@@ -54,8 +50,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    env_file:
+      - ../auth_module/.env
     environment:
       - DATABASE_URL=postgres://user:password@postgres:5432/mydb?sslmode=disable
+      - API_KEY=${API_KEY}
+      - DEEPSEEK_BASE_URL=https://api.deepseek.com
+      - DEEPSEEK_MODEL=deepseek-v4-flash
 
 volumes:
   postgres_data:
