@@ -7,12 +7,18 @@ import (
 	"fitnes_app/main_module/repository"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
 func main() {
+	godotenv.Load(filepath.Join("..", "auth_module", ".env"))
+	godotenv.Load(".env")
+
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		dsn = "postgres://user:password@localhost:5432/mydb?sslmode=disable"
@@ -30,9 +36,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	apiKey := os.Getenv("API_KEY")
-	baseURL := os.Getenv("DEEPSEEK_BASE_URL")
-	aiModel := os.Getenv("DEEPSEEK_MODEL")
+	apiKey := strings.TrimSpace(os.Getenv("API_KEY"))
+	baseURL := strings.TrimSpace(os.Getenv("DEEPSEEK_BASE_URL"))
+	aiModel := strings.TrimSpace(os.Getenv("DEEPSEEK_MODEL"))
+
+	if apiKey == "" {
+		log.Println("WARNING: API_KEY is not set — AI endpoints will fail")
+	} else {
+		log.Printf("INFO: API_KEY loaded (len=%d), baseURL=%s, model=%s", len(apiKey), baseURL, aiModel)
+	}
+
 	aiClient := ai.NewClient(apiKey, baseURL, aiModel)
 
 	h := handler.NewHandler(repo, aiClient)

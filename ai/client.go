@@ -5,20 +5,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
 const (
-	defaultBaseURL = "https://api.deepseek.com"
-	defaultModel   = "deepseek-v4-flash"
-	requestTimeout = 120 * time.Second
+	defaultBaseURL  = "https://openrouter.ai/api/v1"
+	defaultModel    = "deepseek/deepseek-chat"
+	defaultReferer  = "http://localhost:8081"
+	defaultTitle    = "Fitness App"
+	requestTimeout  = 120 * time.Second
 )
 
 type Client struct {
 	apiKey  string
 	baseURL string
 	model   string
+	referer string
+	title   string
 	http    *http.Client
 }
 
@@ -33,6 +39,8 @@ func NewClient(apiKey, baseURL, model string) *Client {
 		apiKey:  apiKey,
 		baseURL: baseURL,
 		model:   model,
+		referer: defaultReferer,
+		title:   defaultTitle,
 		http:    &http.Client{Timeout: requestTimeout},
 	}
 }
@@ -83,6 +91,10 @@ func (c *Client) chatCompletion(system, user string) (string, error) {
 	if c.apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
+	req.Header.Set("HTTP-Referer", c.referer)
+	req.Header.Set("X-Title", c.title)
+
+	log.Printf("AI request: POST %s (key=%s..., model=%s)", c.baseURL+"/chat/completions", safePrefix(c.apiKey, 12), c.model)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -95,9 +107,14 @@ func (c *Client) chatCompletion(system, user string) (string, error) {
 		return "", fmt.Errorf("read response: %w", err)
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("OpenRouter error response: status=%d body=%s", resp.StatusCode, string(raw))
+		return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(raw))
+	}
+
 	var chatResp chatResponse
 	if err := json.Unmarshal(raw, &chatResp); err != nil {
-		return "", fmt.Errorf("unmarshal response (%s): %w", string(raw), err)
+		return "", fmt.Errorf("unmarshal response: %w (body: %s)", err, string(raw))
 	}
 
 	if chatResp.Error != nil {
@@ -108,7 +125,28 @@ func (c *Client) chatCompletion(system, user string) (string, error) {
 		return "", fmt.Errorf("empty response from API")
 	}
 
-	return chatResp.Choices[0].Message.Content, nil
+	return stripMarkdownFences(chatResp.Choices[0].Message.Content), nil
+}
+
+func stripMarkdownFences(s string) string {
+	s = strings.TrimSpace(s)
+	// Remove ```json ... ``` or ``` ... ``` fences
+	if strings.HasPrefix(s, "```") {
+		idx := strings.Index(s, "\n")
+		if idx != -1 {
+			s = s[idx+1:]
+		}
+		s = strings.TrimSuffix(s, "```")
+		s = strings.TrimSpace(s)
+	}
+	return s
+}
+
+func safePrefix(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
 }
 
 func (c *Client) GenerateWorkout(sex string, weight float64, level, goal string, limitations, equipment []string) (string, error) {
