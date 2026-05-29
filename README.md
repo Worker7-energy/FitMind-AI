@@ -28,6 +28,13 @@ VITE_MAIN_API_BASE=/main-api
 
 Vite proxy уже настроен для `/auth-api/*` и `/main-api/*`.
 
+Локально ветки можно держать в:
+
+- `backend/auth`
+- `backend/main-module`
+
+AI endpoints в `main-module` требуют `API_KEY`; без него backend возвращает ошибку внешнего AI-провайдера, а интерфейс показывает ее как статус генерации.
+
 ## Проверки
 
 ```bash

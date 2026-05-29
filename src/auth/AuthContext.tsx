@@ -21,7 +21,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const raw = localStorage.getItem(storageKey)
-    if (raw) setSession(JSON.parse(raw) as AuthSession)
+    if (raw) {
+      try {
+        setSession(JSON.parse(raw) as AuthSession)
+      } catch {
+        localStorage.removeItem(storageKey)
+      }
+    }
     setIsReady(true)
   }, [])
 

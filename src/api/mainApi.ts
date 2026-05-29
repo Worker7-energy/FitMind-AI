@@ -17,6 +17,29 @@ import type {
 } from '../types'
 
 const todayKey = () => new Date().toISOString().slice(0, 10)
+const asArray = <T>(value: T[] | null | undefined): T[] => value ?? []
+const uniqueExercises = (items: Exercise[]) => {
+  const seen = new Set<string>()
+  return items.filter((item) => {
+    const key = `${item.name.trim().toLowerCase()}::${item.muscle_group.trim().toLowerCase()}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+const defaultExerciseCatalog = [
+  { name: 'Жим лежа', muscle_group: 'Грудь' },
+  { name: 'Присед со штангой', muscle_group: 'Ноги' },
+  { name: 'Становая тяга', muscle_group: 'Спина' },
+  { name: 'Тяга верхнего блока', muscle_group: 'Спина' },
+  { name: 'Жим гантелей сидя', muscle_group: 'Плечи' },
+  { name: 'Выпады с гантелями', muscle_group: 'Ноги' },
+  { name: 'Подтягивания', muscle_group: 'Спина' },
+  { name: 'Планка', muscle_group: 'Кор' },
+  { name: 'Сгибание рук с гантелями', muscle_group: 'Руки' },
+  { name: 'Разгибание рук на блоке', muscle_group: 'Руки' },
+]
 
 export const profileApi = {
   async get(userId: string) {
@@ -43,13 +66,13 @@ export const profileApi = {
 export const exercisesApi = {
   async list() {
     if (useMocks) return readMockState().exercises
-    return mainRequest<Exercise[]>('/exercises')
+    return uniqueExercises(asArray(await mainRequest<Exercise[] | null>('/exercises')))
   },
   async search(query: string) {
     if (useMocks) {
       return readMockState().exercises.filter((item) => item.name.toLowerCase().includes(query.toLowerCase()))
     }
-    return mainRequest<Exercise[]>(`/exercises/search?q=${encodeURIComponent(query)}`)
+    return uniqueExercises(asArray(await mainRequest<Exercise[] | null>(`/exercises/search?q=${encodeURIComponent(query)}`)))
   },
   async create(input: Omit<Exercise, 'id'>) {
     if (useMocks) {
@@ -62,12 +85,30 @@ export const exercisesApi = {
     const data = await mainRequest<{ id: number }>('/exercises', { method: 'POST', body: input })
     return { ...input, id: data.id }
   },
+  async ensureCatalog(userId?: string) {
+    const current = await this.list()
+    const normalized = new Set(current.map((item) => item.name.trim().toLowerCase()))
+    const missing = defaultExerciseCatalog.filter((item) => !normalized.has(item.name.toLowerCase()))
+    if (!missing.length) return uniqueExercises(current)
+
+    const created = await Promise.all(
+      missing.map((item) =>
+        this.create({
+          name: item.name,
+          muscle_group: item.muscle_group,
+          is_custom: false,
+          created_by_user_id: userId,
+        }).catch(() => null),
+      ),
+    )
+    return uniqueExercises([...current, ...created.filter((item): item is Exercise => Boolean(item))])
+  },
 }
 
 export const workoutsApi = {
   async templates(userId: string) {
     if (useMocks) return readMockState().templates.filter((item) => item.user_id === userId)
-    return mainRequest<WorkoutTemplate[]>(`/workouts/templates/user/${userId}`)
+    return asArray(await mainRequest<WorkoutTemplate[] | null>(`/workouts/templates/user/${userId}`))
   },
   async templateDetails(id: number) {
     if (useMocks) {
@@ -77,7 +118,8 @@ export const workoutsApi = {
         exercises: state.workoutExercises.filter((item) => item.template_id === id),
       }
     }
-    return mainRequest<{ template: WorkoutTemplate; exercises: WorkoutExercise[] }>(`/workouts/templates/${id}`)
+    const details = await mainRequest<{ template: WorkoutTemplate; exercises: WorkoutExercise[] | null }>(`/workouts/templates/${id}`)
+    return { ...details, exercises: asArray(details.exercises) }
   },
   async createTemplate(userId: string, name: string) {
     if (useMocks) {
@@ -106,7 +148,7 @@ export const workoutsApi = {
   },
   async sessions(userId: string) {
     if (useMocks) return readMockState().sessions.filter((item) => item.user_id === userId)
-    return mainRequest<WorkoutSession[]>(`/workouts/sessions/user/${userId}`)
+    return asArray(await mainRequest<WorkoutSession[] | null>(`/workouts/sessions/user/${userId}`))
   },
   async startSession(userId: string, templateId: number) {
     if (useMocks) {
@@ -155,7 +197,7 @@ export const workoutsApi = {
 export const foodApi = {
   async list(userId: string) {
     if (useMocks) return readMockState().foods.filter((item) => !item.user_id || item.user_id === userId)
-    return mainRequest<FoodItem[]>(`/food?user_id=${encodeURIComponent(userId)}`)
+    return asArray(await mainRequest<FoodItem[] | null>(`/food?user_id=${encodeURIComponent(userId)}`))
   },
   async create(input: Omit<FoodItem, 'id'>) {
     if (useMocks) {
@@ -170,7 +212,7 @@ export const foodApi = {
   },
   async logs(userId: string, date = todayKey()) {
     if (useMocks) return readMockState().mealLogs.filter((item) => item.user_id === userId && item.date.slice(0, 10) === date)
-    return mainRequest<MealLog[]>(`/meal-logs?user_id=${encodeURIComponent(userId)}&date=${date}`)
+    return asArray(await mainRequest<MealLog[] | null>(`/meal-logs?user_id=${encodeURIComponent(userId)}&date=${date}`))
   },
   async addLog(input: Omit<MealLog, 'id' | 'date'>) {
     if (useMocks) {
@@ -205,13 +247,13 @@ export const aiApi = {
     if (useMocks) {
       return { note: 'Mock: backend AI пока заглушка, но форма уже готова к реальному ответу.', exercises: [] }
     }
-    return mainRequest<{ note: string; exercises: unknown[] }>('/ai/generate-workout', { method: 'POST', body: input })
+    return mainRequest<{ note?: string; error?: string; exercises?: unknown[] }>('/ai/generate-workout', { method: 'POST', body: input })
   },
   async mealPlan(input: AiMealPlanRequest) {
     if (useMocks) {
       return { note: 'Mock: backend AI пока заглушка, но форма уже готова к реальному ответу.', meals: [] }
     }
-    return mainRequest<{ note: string; meals: unknown[] }>('/ai/generate-meal-plan', { method: 'POST', body: input })
+    return mainRequest<{ note?: string; error?: string; meals?: unknown[] }>('/ai/generate-meal-plan', { method: 'POST', body: input })
   },
 }
 
