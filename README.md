@@ -1,6 +1,6 @@
 # FitMind AI Web
 
-React SPA для FitMind AI: личный кабинет с авторизацией, профилем, тренировками, питанием, AI-заглушками и калькулятором 1ПМ.
+React SPA для FitMind AI: личный кабинет с авторизацией, профилем, тренировками, питанием, AI-планами и калькулятором 1ПМ.
 
 ## Запуск
 
@@ -9,31 +9,36 @@ npm install
 npm run dev
 ```
 
-Сайт откроется на `http://127.0.0.1:5173`.
+Интерфейс откроется на `http://127.0.0.1:5173`.
 
 ## Backend
 
-По умолчанию включен mock mode, поэтому интерфейс работает без запущенных Go-сервисов.
-
-```env
-VITE_USE_MOCKS=true
-VITE_AUTH_API_BASE=/auth-api
-VITE_MAIN_API_BASE=/main-api
-```
-
-Чтобы подключить реальные сервисы из веток `auth` и `main-module`, выставьте `VITE_USE_MOCKS=false` и запустите:
+По умолчанию интерфейс работает с реальными Go-сервисами через Vite proxy:
 
 - auth service: `http://localhost:8080`
 - main service: `http://localhost:8081`
 
+Настройки:
+
+```env
+VITE_AUTH_API_BASE=/auth-api
+VITE_MAIN_API_BASE=/main-api
+```
+
+Для локального демо без Go-сервисов можно явно включить мок-режим:
+
+```env
+VITE_USE_MOCKS=true
+```
+
 Vite proxy уже настроен для `/auth-api/*` и `/main-api/*`.
 
-Локально ветки можно держать в:
+Локальные сервисы лежат в:
 
 - `backend/auth`
 - `backend/main-module`
 
-AI endpoints в `main-module` требуют `API_KEY`; без него backend возвращает ошибку внешнего AI-провайдера, а интерфейс показывает ее как статус генерации.
+AI endpoints в `main-module` требуют `API_KEY`. Если ключ не задан, интерфейс покажет понятную ошибку генерации.
 
 ## Проверки
 

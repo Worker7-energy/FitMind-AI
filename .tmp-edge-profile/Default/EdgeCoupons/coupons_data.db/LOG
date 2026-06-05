@@ -1,0 +1,5 @@
+2026/06/05-02:33:30.701 536c Creating DB C:\Users\gofan\Desktop\mobile_project\.tmp-edge-profile\Default\EdgeCoupons/coupons_data.db since it was missing.
+2026/06/05-02:33:30.735 536c Reusing MANIFEST C:\Users\gofan\Desktop\mobile_project\.tmp-edge-profile\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/06/05-02:33:31.258 38f4 Level-0 table #5: started
+2026/06/05-02:33:31.264 38f4 Level-0 table #5: 682661 bytes OK
+2026/06/05-02:33:31.266 38f4 Delete type=0 #3

@@ -2,13 +2,25 @@ import type { AuthSession } from '../types'
 
 const authBase = import.meta.env.VITE_AUTH_API_BASE ?? '/auth-api'
 const mainBase = import.meta.env.VITE_MAIN_API_BASE ?? '/main-api'
-export const useMocks = import.meta.env.VITE_USE_MOCKS !== 'false'
+export const useMocks = import.meta.env.VITE_USE_MOCKS === 'true'
 
 type JsonBody = Record<string, unknown> | Array<unknown>
 type ApiRequestInit = Omit<RequestInit, 'body'> & { body?: BodyInit | JsonBody }
 
 let sessionGetter: (() => AuthSession | null) | null = null
 let refreshHandler: (() => Promise<AuthSession | null>) | null = null
+
+export class ApiRequestError extends Error {
+  status: number
+  body: string
+
+  constructor(status: number, body: string) {
+    super(body || `HTTP ${status}`)
+    this.name = 'ApiRequestError'
+    this.status = status
+    this.body = body
+  }
+}
 
 export function attachAuth(getSession: () => AuthSession | null, refresh: () => Promise<AuthSession | null>) {
   sessionGetter = getSession
@@ -33,7 +45,7 @@ async function request<T>(base: string, path: string, options: ApiRequestInit = 
   }
   if (!response.ok) {
     const message = await response.text()
-    throw new Error(message || `HTTP ${response.status}`)
+    throw new ApiRequestError(response.status, message)
   }
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>

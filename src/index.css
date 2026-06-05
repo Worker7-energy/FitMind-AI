@@ -1,18 +1,20 @@
 :root {
-  --bg: #f4f6f4;
-  --panel: #ffffff;
-  --panel-soft: #f8faf8;
-  --panel-strong: #e9f3ee;
-  --text: #17211f;
-  --muted: #66736f;
-  --border: #dce5df;
-  --primary: #2f7d68;
-  --primary-strong: #236352;
-  --accent: #2d5f9a;
-  --green: #2f7d68;
-  --amber: #b86f22;
-  --danger: #b94a35;
-  --shadow: 0 12px 34px rgba(24, 42, 36, 0.08);
+  --bg: #f3f5f0;
+  --surface: #ffffff;
+  --surface-soft: #f8faf6;
+  --surface-raised: #eef5f1;
+  --text: #17201d;
+  --muted: #65716d;
+  --border: #dbe3dc;
+  --primary: #1f8a70;
+  --primary-strong: #176c58;
+  --accent: #315f9f;
+  --amber: #b7791f;
+  --danger: #b84237;
+  --danger-bg: #fff0ee;
+  --success-bg: #edf9f4;
+  --info-bg: #eef5ff;
+  --shadow: 0 16px 42px rgba(32, 48, 42, 0.1);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background: var(--bg);
@@ -23,20 +25,22 @@
 }
 
 :root[data-theme="dark"] {
-  --bg: #111816;
-  --panel: #17211f;
-  --panel-soft: #1c2926;
-  --panel-strong: #203b33;
+  --bg: #101715;
+  --surface: #17211f;
+  --surface-soft: #1d2a27;
+  --surface-raised: #233833;
   --text: #edf5f1;
-  --muted: #9cafaa;
-  --border: #2d413b;
-  --primary: #77c7a8;
-  --primary-strong: #9addc3;
-  --accent: #8db8f0;
-  --green: #77c7a8;
-  --amber: #e2a75f;
-  --danger: #ef8f78;
-  --shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+  --muted: #a5b5b0;
+  --border: #2e433d;
+  --primary: #76cdae;
+  --primary-strong: #9be0c8;
+  --accent: #92bdf2;
+  --amber: #e0a85d;
+  --danger: #f0927c;
+  --danger-bg: #3a211f;
+  --success-bg: #17352c;
+  --info-bg: #162842;
+  --shadow: 0 16px 42px rgba(0, 0, 0, 0.3);
 }
 
 * {
@@ -60,7 +64,7 @@ button {
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.58;
+  opacity: 0.62;
 }
 
 a {
@@ -84,24 +88,70 @@ a {
 .auth-screen,
 .fallback-screen {
   background:
-    linear-gradient(145deg, rgba(47, 125, 104, 0.18), transparent 36%),
-    linear-gradient(315deg, rgba(45, 95, 154, 0.13), transparent 34%),
+    radial-gradient(circle at 18% 12%, rgba(31, 138, 112, 0.18), transparent 32%),
+    radial-gradient(circle at 92% 20%, rgba(49, 95, 159, 0.14), transparent 30%),
     var(--bg);
 }
 
-.auth-panel,
-.fallback-panel {
-  width: min(480px, 100%);
+.auth-panel {
+  width: min(1040px, 100%);
+  min-height: 600px;
   display: grid;
-  gap: 18px;
-  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  grid-template-columns: 1fr 0.92fr;
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: var(--shadow);
-  padding: 30px;
 }
 
-.auth-panel h1,
+.auth-copy {
+  display: grid;
+  align-content: center;
+  gap: 18px;
+  padding: 42px;
+}
+
+.auth-copy h1 {
+  margin: 0;
+  max-width: 540px;
+  font-size: clamp(34px, 5vw, 62px);
+  line-height: 1.02;
+}
+
+.auth-copy p {
+  margin: 0;
+  max-width: 500px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.auth-visual {
+  grid-row: 1 / span 2;
+  min-height: 600px;
+  background-size: cover;
+  background-position: center;
+}
+
+.auth-form-box {
+  display: grid;
+  gap: 16px;
+  padding: 0 42px 42px;
+}
+
+.fallback-panel {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 18px;
+  padding: 30px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
 .fallback-panel h1,
 .fallback-panel p {
   margin: 0;
@@ -110,7 +160,7 @@ a {
 .app-shell {
   min-height: 100svh;
   display: grid;
-  grid-template-columns: 276px minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr);
 }
 
 .sidebar {
@@ -121,7 +171,7 @@ a {
   flex-direction: column;
   gap: 22px;
   padding: 22px;
-  background: var(--panel);
+  background: color-mix(in srgb, var(--surface) 94%, var(--surface-raised));
   border-right: 1px solid var(--border);
 }
 
@@ -160,7 +210,7 @@ a {
 }
 
 .auth-brand {
-  margin-bottom: 2px;
+  align-self: start;
 }
 
 .nav {
@@ -181,7 +231,7 @@ a {
 .nav a.active,
 .nav a:hover {
   color: var(--text);
-  background: var(--panel-strong);
+  background: var(--surface-raised);
 }
 
 .sidebar-actions {
@@ -196,7 +246,7 @@ a {
 }
 
 .page {
-  max-width: 1180px;
+  max-width: 1200px;
   margin: 0 auto;
   display: grid;
   gap: 20px;
@@ -222,7 +272,7 @@ a {
 .metric-card,
 .panel,
 .item-card {
-  background: var(--panel);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: var(--shadow);
@@ -246,12 +296,13 @@ a {
 .metric-card strong {
   font-size: 26px;
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .dashboard-grid,
 .split-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.16fr) minmax(320px, 0.84fr);
+  grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr);
   gap: 16px;
 }
 
@@ -275,7 +326,7 @@ a {
   gap: 14px;
 }
 
-.feature-panel svg {
+.feature-panel > svg {
   color: var(--primary);
 }
 
@@ -295,21 +346,17 @@ a {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.workout-builder {
+  grid-template-columns: minmax(220px, 1.2fr) repeat(3, minmax(110px, 0.5fr)) auto;
+}
+
 .inline-form {
-  grid-template-columns: minmax(0, 1fr) minmax(130px, 0.35fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 0.35fr) auto;
   align-items: end;
 }
 
 .inline-form.two {
   grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.subtle-form {
-  margin: 14px 0;
-  padding: 12px;
-  background: var(--panel-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
 }
 
 label {
@@ -326,18 +373,28 @@ select {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 9px 11px;
-  background: var(--panel);
+  background: var(--surface);
   color: var(--text);
 }
 
 input:focus,
 select:focus {
-  outline: 2px solid color-mix(in srgb, var(--primary) 32%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--primary) 34%, transparent);
   border-color: var(--primary);
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--danger);
+  background: var(--danger-bg);
 }
 
 input[type="range"] {
   padding: 0;
+}
+
+.field-error {
+  color: var(--danger);
+  line-height: 1.35;
 }
 
 .primary-button,
@@ -368,9 +425,15 @@ input[type="range"] {
 .secondary-button,
 .ghost-button,
 .icon-button {
-  background: var(--panel);
+  background: var(--surface);
   color: var(--text);
   border-color: var(--border);
+}
+
+.secondary-button:hover,
+.ghost-button:hover,
+.icon-button:hover {
+  background: var(--surface-raised);
 }
 
 .segmented {
@@ -379,7 +442,7 @@ input[type="range"] {
   gap: 6px;
   padding: 5px;
   border-radius: 8px;
-  background: var(--panel-strong);
+  background: var(--surface-raised);
 }
 
 .segmented button {
@@ -388,9 +451,10 @@ input[type="range"] {
 }
 
 .segmented button.active {
-  background: var(--panel);
+  background: var(--surface);
   color: var(--text);
   border-color: var(--border);
+  box-shadow: 0 8px 20px rgba(20, 34, 30, 0.08);
 }
 
 .toolbar {
@@ -405,13 +469,14 @@ input[type="range"] {
   gap: 8px;
   min-width: 0;
   padding-left: 12px;
-  background: var(--panel);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
 }
 
 .search input {
   border: 0;
+  background: transparent;
 }
 
 .card-grid {
@@ -428,6 +493,10 @@ input[type="range"] {
   gap: 8px;
 }
 
+.item-card strong {
+  overflow-wrap: anywhere;
+}
+
 .compact-card {
   min-height: 86px;
 }
@@ -437,7 +506,7 @@ input[type="range"] {
   display: grid;
   gap: 10px;
   padding: 0;
-  margin: 0;
+  margin: 14px 0 0;
 }
 
 .list li {
@@ -449,7 +518,11 @@ input[type="range"] {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--panel-soft);
+  background: var(--surface-soft);
+}
+
+.list li strong {
+  overflow-wrap: anywhere;
 }
 
 .list li span {
@@ -470,10 +543,6 @@ input[type="range"] {
   outline: 2px solid color-mix(in srgb, var(--primary) 64%, transparent);
 }
 
-.range-label {
-  margin-top: 14px;
-}
-
 .notice,
 .empty-state {
   border-radius: 8px;
@@ -490,18 +559,18 @@ input[type="range"] {
 }
 
 .notice.success {
-  color: var(--green);
-  background: color-mix(in srgb, var(--green) 12%, transparent);
+  color: var(--primary-strong);
+  background: var(--success-bg);
 }
 
 .notice.error {
   color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  background: var(--danger-bg);
 }
 
 .notice.info {
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--info-bg);
 }
 
 .empty-state {
@@ -512,12 +581,25 @@ input[type="range"] {
   padding: 20px;
   text-align: center;
   color: var(--muted);
-  background: var(--panel-soft);
+  background: var(--surface-soft);
   border: 1px dashed var(--border);
 }
 
 .empty-state strong {
   color: var(--text);
+}
+
+.result-box {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
 }
 
 .spin {
@@ -530,7 +612,7 @@ input[type="range"] {
   }
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 1120px) {
   .app-shell {
     grid-template-columns: 1fr;
   }
@@ -555,14 +637,41 @@ input[type="range"] {
   .split-grid {
     grid-template-columns: 1fr;
   }
+
+  .workout-builder {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 780px) {
   .content,
   .sidebar,
-  .auth-panel,
   .fallback-panel {
     padding: 16px;
+  }
+
+  .auth-screen {
+    padding: 12px;
+  }
+
+  .auth-panel {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    min-height: 0;
+  }
+
+  .auth-copy,
+  .auth-form-box {
+    padding: 22px;
+  }
+
+  .auth-visual {
+    grid-row: auto;
+    min-height: 210px;
+  }
+
+  .auth-copy h1 {
+    font-size: 36px;
   }
 
   .page-header h1 {
@@ -577,6 +686,7 @@ input[type="range"] {
   .card-grid,
   .form-grid,
   .form-grid.compact,
+  .workout-builder,
   .inline-form,
   .inline-form.two {
     grid-template-columns: 1fr;

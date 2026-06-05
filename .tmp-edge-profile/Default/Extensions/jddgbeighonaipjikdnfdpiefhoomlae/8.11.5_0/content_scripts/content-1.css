@@ -1,0 +1,205 @@
+/*!
+ * Toastify js 1.12.0
+ * https://github.com/apvarun/toastify-js
+ * @license MIT licensed
+ *
+ * Copyright (C) 2018 Varun A P
+ */
+
+.toastify {
+    padding: 12px 20px;
+    color: #ffffff;
+    display: inline-block;
+    box-shadow: 0 3px 6px -1px rgba(0, 0, 0, 0.12), 0 10px 36px -4px rgba(77, 96, 232, 0.3);
+    background: -webkit-linear-gradient(315deg, #73a5ff, #5477f5);
+    background: linear-gradient(135deg, #73a5ff, #5477f5);
+    position: fixed;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+    border-radius: 2px;
+    cursor: pointer;
+    text-decoration: none;
+    max-width: calc(50% - 20px);
+    z-index: 2147483647;
+}
+
+.toastify.on {
+    opacity: 1;
+}
+
+.toast-close {
+    background: transparent;
+    border: 0;
+    color: white;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1em;
+    opacity: 0.4;
+    padding: 0 5px;
+}
+
+.toastify-right {
+    right: 15px;
+}
+
+.toastify-left {
+    left: 15px;
+}
+
+.toastify-top {
+    top: -150px;
+}
+
+.toastify-bottom {
+    bottom: -150px;
+}
+
+.toastify-rounded {
+    border-radius: 25px;
+}
+
+.toastify-avatar {
+    width: 1.5em;
+    height: 1.5em;
+    margin: -7px 5px;
+    border-radius: 2px;
+}
+
+.toastify-center {
+    margin-left: auto;
+    margin-right: auto;
+    left: 0;
+    right: 0;
+    max-width: fit-content;
+    max-width: -moz-fit-content;
+}
+
+@media only screen and (max-width: 360px) {
+    .toastify-right, .toastify-left {
+        margin-left: auto;
+        margin-right: auto;
+        left: 0;
+        right: 0;
+        max-width: fit-content;
+    }
+}
+
+.toastify.custom-toast-wrapper {
+  font-family: Arial, sans-serif;
+  padding: 16px;
+  background: #1e1e1e;
+  border-radius: 20px;
+  border: 1px solid #232323;
+  box-shadow: 0 4px 12px #0000004d;
+  min-width: 480px;
+  max-width: 480px;
+  width: 480px;
+  cursor: default;
+}
+
+.custom-toast-wrapper__content {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.custom-toast-wrapper__header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  align-items: center;
+}
+
+.custom-toast-wrapper__header--end {
+  justify-content: flex-end;
+}
+
+.custom-toast-wrapper__header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 140%;
+  letter-spacing: -0.42px;
+  color: #fff;
+  flex: 1 1;
+}
+
+.custom-toast-wrapper__close-button {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+
+.custom-toast-wrapper__close-button:hover {
+  opacity: 0.75;
+}
+
+.custom-toast-wrapper__close-button img {
+  width: 100%;
+  height: 100%;
+}
+
+.custom-toast-wrapper__description {
+  width: 100%;
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 140%;
+  letter-spacing: -0.42px;
+  color: #fff9;
+}
+
+.custom-toast-wrapper__buttons {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.custom-toast-wrapper__buttons button {
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #fff6;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 100%;
+  letter-spacing: -0.42px;
+  color: #fff9;
+  background: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.custom-toast-wrapper__buttons button:hover {
+  opacity: 0.75;
+}
+
+.custom-toast-wrapper__buttons button.accent {
+  color: #fff;
+  border-color: #fff;
+}
+
+.custom-toast-wrapper-hidden {
+  display: none !important;
+}
+
+.toastify.custom-toast-wrapper[data-fullscreen-hidden='true'] {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+

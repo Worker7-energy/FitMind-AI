@@ -21,20 +21,26 @@ import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { aiApi, calculatorApi, exercisesApi, foodApi, profileApi, workoutsApi } from './api/mainApi'
 import { useAuth } from './auth/AuthContext'
+import heroImage from './assets/hero.png'
 import type {
+  AiMealPlanRequest,
+  AiWorkoutRequest,
   CalorieGoal,
   Exercise,
   FitnessProfile,
   FoodItem,
   MealLog,
   OneRmResponse,
+  WorkingWeightResponse,
   WorkoutExercise,
   WorkoutSession,
   WorkoutTemplate,
-  WorkingWeightResponse,
 } from './types'
 
 type Notice = { type: 'success' | 'error' | 'info'; text: string } | null
+
+const muscleGroups = ['Грудь', 'Спина', 'Ноги', 'Плечи', 'Руки', 'Кор', 'Кардио', 'Другое']
+const mealTypes = ['Завтрак', 'Обед', 'Ужин', 'Перекус']
 
 const navItems = [
   { to: '/', label: 'Главная', icon: Home },
@@ -74,10 +80,10 @@ function ProtectedShell() {
           <div className="brand-mark">FM</div>
           <div>
             <strong>FitMind AI</strong>
-            <span>тренировки и питание без хаоса</span>
+            <span>тренировки, питание и прогресс</span>
           </div>
         </div>
-        <nav className="nav">
+        <nav className="nav" aria-label="Основная навигация">
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'}>
               <item.icon size={18} />
@@ -124,9 +130,11 @@ function AuthPage() {
     if (session) navigate('/', { replace: true })
   }, [navigate, session])
 
-  async function submit(event: FormEvent) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setNotice(null)
+    if (!ensureForm(event.currentTarget, setNotice)) return
+
     setIsLoading(true)
     try {
       if (mode === 'login') await login(email.trim(), password)
@@ -141,39 +149,51 @@ function AuthPage() {
 
   return (
     <main className="auth-screen">
-      <section className="auth-panel product-panel">
-        <div className="brand auth-brand">
-          <div className="brand-mark">FM</div>
-          <div>
-            <strong>FitMind AI</strong>
-            <span>персональный фитнес-кабинет</span>
+      <section className="auth-panel">
+        <div className="auth-copy">
+          <div className="brand auth-brand">
+            <div className="brand-mark">FM</div>
+            <div>
+              <strong>FitMind AI</strong>
+              <span>личный фитнес-кабинет</span>
+            </div>
           </div>
+          <h1>Тренировки и питание без хаоса</h1>
+          <p>Ведите упражнения, рацион и прогресс в одном интерфейсе, который работает с вашим Go-бэкендом.</p>
         </div>
-        <h1>Добро пожаловать</h1>
-        <p className="muted">Войдите, чтобы вести тренировки, питание и прогресс в одном месте.</p>
-        <div className="segmented">
-          <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>
-            Вход
-          </button>
-          <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>
-            Регистрация
-          </button>
+        <div className="auth-visual" style={{ backgroundImage: `url(${heroImage})` }} aria-hidden="true" />
+        <div className="auth-form-box">
+          <div className="segmented">
+            <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>
+              Вход
+            </button>
+            <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>
+              Регистрация
+            </button>
+          </div>
+          <form className="form" onSubmit={submit}>
+            <label>
+              Email
+              <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" required />
+            </label>
+            <label>
+              Пароль
+              <input
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                type="password"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                minLength={6}
+                required
+              />
+            </label>
+            <NoticeBox notice={notice} />
+            <button className="primary-button" type="submit" disabled={isLoading}>
+              {isLoading ? <Loader2 className="spin" size={18} /> : null}
+              {mode === 'login' ? 'Войти' : 'Создать аккаунт'}
+            </button>
+          </form>
         </div>
-        <form className="form" onSubmit={submit}>
-          <label>
-            Email
-            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" required />
-          </label>
-          <label>
-            Пароль
-            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={6} required />
-          </label>
-          <NoticeBox notice={notice} />
-          <button className="primary-button" type="submit" disabled={isLoading}>
-            {isLoading ? <Loader2 className="spin" size={18} /> : null}
-            {mode === 'login' ? 'Войти' : 'Создать аккаунт'}
-          </button>
-        </form>
       </section>
     </main>
   )
@@ -192,45 +212,47 @@ function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      profileApi.get(userId).then(setProfile).catch(() => setProfile(null)),
+      profileApi.get(userId).then(setProfile),
       workoutsApi.templates(userId).then(setTemplates),
       workoutsApi.sessions(userId).then(setSessions),
       foodApi.list(userId).then(setFoods),
       foodApi.logs(userId).then(setLogs),
-      foodApi.goal(userId).then(setGoal).catch(() => setGoal(null)),
+      foodApi.goal(userId).then(setGoal),
     ]).catch((error) => setNotice({ type: 'error', text: apiError(error, 'Не удалось загрузить главную страницу.') }))
   }, [userId])
 
   const calories = useMemo(() => nutritionTotals(foods, logs), [foods, logs])
   const chartData = useMemo(() => sessionsToChart(sessions), [sessions])
+  const hasChartData = chartData.some((item) => item.minutes > 0)
   const calorieGoal = goal?.daily_goal ?? profile?.daily_calories_goal ?? 0
-  const lastSession = sessions.filter((item) => item.completed_at).at(-1)
+  const completedSessions = sessions.filter((item) => item.completed_at)
+  const lastSession = completedSessions.at(-1)
 
   return (
     <section className="page">
-      <PageHeader title="Главная" subtitle="Ваш текущий прогресс без лишнего шума." />
+      <PageHeader title="Главная" subtitle="Короткая сводка по реальным данным аккаунта." />
       <NoticeBox notice={notice} />
       <div className="metric-grid">
         <Metric title="Калории сегодня" value={calorieGoal ? `${Math.round(calories.calories)} / ${calorieGoal}` : `${Math.round(calories.calories)} ккал`} caption={calorieGoal ? 'по дневной цели' : 'цель пока не задана'} />
         <Metric title="Шаблоны" value={String(templates.length)} caption="готовых тренировок" />
-        <Metric title="История" value={String(sessions.length)} caption="тренировочных сессий" />
-        <Metric title="Профиль" value={profile ? `${profile.weight} кг` : 'не заполнен'} caption={profile ? `${profile.height} см, ${profile.age} лет` : 'добавьте данные'} />
+        <Metric title="История" value={String(completedSessions.length)} caption="завершенных тренировок" />
+        <Metric title="Профиль" value={profile ? `${profile.weight} кг` : 'не заполнен'} caption={profile ? `${profile.height} см, ${profile.age} лет` : 'добавьте исходные данные'} />
       </div>
       <div className="dashboard-grid">
         <section className="panel chart-panel">
           <h2>Активность за 7 дней</h2>
-          {sessions.length ? (
+          {hasChartData ? (
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="day" />
-                <YAxis />
+                <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Area type="monotone" dataKey="minutes" stroke="#2f7d68" fill="#b9e6d5" />
+                <Area type="monotone" dataKey="minutes" name="Минуты" stroke="#1f8a70" fill="#9ad8c7" />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <EmptyState title="Пока нет тренировок" text="Когда вы завершите первую тренировку, здесь появится реальная динамика." />
+            <EmptyState title="Пока нет тренировок" text="Здесь появится график только после завершенной тренировки." />
           )}
         </section>
         <section className="panel">
@@ -238,8 +260,8 @@ function Dashboard() {
           {lastSession ? (
             <List>
               <li>
-                <strong>Сессия #{lastSession.id}</strong>
-                <span>{lastSession.duration_minutes} мин</span>
+                <strong>{templateName(templates, lastSession.template_id)}</strong>
+                <span>{lastSession.duration_minutes || 0} мин</span>
               </li>
             </List>
           ) : (
@@ -267,13 +289,17 @@ function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    profileApi.get(userId).then((data) => data && setProfile(data)).catch(() => undefined)
+    profileApi.get(userId).then((data) => {
+      if (data) setProfile(data)
+      else setProfile((current) => ({ ...current, user_id: userId }))
+    }).catch((error) => setNotice({ type: 'error', text: apiError(error, 'Не удалось загрузить профиль.') }))
   }, [userId])
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setNotice(null)
-    if (!event.currentTarget.reportValidity()) return
+    if (!ensureForm(event.currentTarget, setNotice)) return
+
     setIsSaving(true)
     try {
       await profileApi.save({ ...profile, user_id: userId })
@@ -287,7 +313,7 @@ function ProfilePage() {
 
   return (
     <section className="page">
-      <PageHeader title="Профиль" subtitle="Эти данные помогают точнее считать калории и нагрузку." />
+      <PageHeader title="Профиль" subtitle="Эти данные используются для расчетов калорий, нагрузки и AI-планов." />
       <form className="panel form-grid" onSubmit={save}>
         <NumberField label="Вес, кг" min={30} max={250} value={profile.weight} onChange={(weight) => setProfile({ ...profile, weight })} />
         <NumberField label="Рост, см" min={100} max={230} value={profile.height} onChange={(height) => setProfile({ ...profile, height })} />
@@ -318,7 +344,7 @@ function ExercisesPage() {
   const [isSaving, setIsSaving] = useState(false)
 
   const load = useCallback(async () => {
-    const list = query ? await exercisesApi.search(query) : await exercisesApi.ensureCatalog(session?.userId)
+    const list = query.trim() ? await exercisesApi.search(query.trim()) : await exercisesApi.ensureCatalog(session?.userId)
     setItems(list)
   }, [query, session?.userId])
 
@@ -329,7 +355,8 @@ function ExercisesPage() {
   async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setNotice(null)
-    if (!event.currentTarget.reportValidity()) return
+    if (!ensureForm(event.currentTarget, setNotice)) return
+
     setIsSaving(true)
     try {
       await exercisesApi.create({ name: name.trim(), muscle_group: muscle.trim(), is_custom: true, created_by_user_id: session?.userId })
@@ -345,7 +372,7 @@ function ExercisesPage() {
 
   return (
     <section className="page">
-      <PageHeader title="Упражнения" subtitle="Справочник движений для ваших тренировок." />
+      <PageHeader title="Упражнения" subtitle="Каталог движений для шаблонов тренировок." />
       <NoticeBox notice={notice} />
       <div className="toolbar">
         <div className="search">
@@ -355,8 +382,16 @@ function ExercisesPage() {
         <button className="secondary-button" type="button" onClick={() => void load()}>Найти</button>
       </div>
       <form className="panel inline-form" onSubmit={add}>
-        <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Например: Румынская тяга" minLength={2} required />
-        <input value={muscle} onChange={(event) => setMuscle(event.target.value)} placeholder="Группа мышц" minLength={2} required />
+        <label>
+          Новое упражнение
+          <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Например: Румынская тяга" minLength={2} required />
+        </label>
+        <label>
+          Группа мышц
+          <select value={muscle} onChange={(event) => setMuscle(event.target.value)}>
+            {muscleGroups.map((group) => <option key={group} value={group}>{group}</option>)}
+          </select>
+        </label>
         <button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? <Loader2 className="spin" size={18} /> : <Plus size={18} />}Добавить</button>
       </form>
       {items.length ? (
@@ -383,7 +418,7 @@ function WorkoutsPage() {
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [templateExercises, setTemplateExercises] = useState<WorkoutExercise[]>([])
   const [sessions, setSessions] = useState<WorkoutSession[]>([])
-  const [templateName, setTemplateName] = useState('')
+  const [templateNameInput, setTemplateNameInput] = useState('')
   const [quickExerciseName, setQuickExerciseName] = useState('')
   const [quickExerciseMuscle, setQuickExerciseMuscle] = useState('Грудь')
   const [selectedTemplate, setSelectedTemplate] = useState(0)
@@ -404,34 +439,38 @@ function WorkoutsPage() {
     setTemplates(nextTemplates)
     setExercises(nextExercises)
     setSessions(nextSessions)
-    setSelectedExercise((current) => current || nextExercises[0]?.id || 0)
-    const templateId = selectedTemplate || nextTemplates[0]?.id || 0
-    setSelectedTemplate(templateId)
-    if (templateId) setTemplateExercises((await workoutsApi.templateDetails(templateId)).exercises)
-    else setTemplateExercises([])
-  }, [selectedTemplate, userId])
+    setSelectedTemplate((current) => (nextTemplates.some((item) => item.id === current) ? current : nextTemplates[0]?.id ?? 0))
+    setSelectedExercise((current) => (nextExercises.some((item) => item.id === current) ? current : nextExercises[0]?.id ?? 0))
+  }, [userId])
 
   useEffect(() => {
     load().catch((error) => setNotice({ type: 'error', text: apiError(error, 'Не удалось загрузить тренировки.') }))
   }, [load])
 
   useEffect(() => {
-    if (selectedTemplate) workoutsApi.templateDetails(selectedTemplate).then((details) => setTemplateExercises(details.exercises)).catch(() => setTemplateExercises([]))
+    if (!selectedTemplate) {
+      setTemplateExercises([])
+      return
+    }
+    workoutsApi.templateDetails(selectedTemplate)
+      .then((details) => setTemplateExercises(details.exercises))
+      .catch((error) => setNotice({ type: 'error', text: apiError(error, 'Не удалось загрузить упражнения шаблона.') }))
   }, [selectedTemplate])
 
   async function createTemplate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setNotice(null)
-    if (!event.currentTarget.reportValidity()) return
+    if (!ensureForm(event.currentTarget, setNotice)) return
+
     setIsSaving(true)
     try {
-      const created = await workoutsApi.createTemplate(userId, templateName.trim())
-      setTemplateName('')
-      setSelectedTemplate(created.id)
-      setNotice({ type: 'success', text: 'Тренировка создана.' })
-      await load()
+      const template = await workoutsApi.createTemplate(userId, templateNameInput.trim())
+      setTemplates((current) => [...current, template])
+      setTemplateNameInput('')
+      setSelectedTemplate(template.id)
+      setNotice({ type: 'success', text: 'Шаблон тренировки создан.' })
     } catch (error) {
-      setNotice({ type: 'error', text: apiError(error, 'Не удалось создать тренировку.') })
+      setNotice({ type: 'error', text: apiError(error, 'Не удалось создать шаблон.') })
     } finally {
       setIsSaving(false)
     }
@@ -440,120 +479,193 @@ function WorkoutsPage() {
   async function createQuickExercise(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setNotice(null)
-    if (!event.currentTarget.reportValidity()) return
+    if (!ensureForm(event.currentTarget, setNotice)) return
+
+    setIsSaving(true)
     try {
-      const created = await exercisesApi.create({ name: quickExerciseName.trim(), muscle_group: quickExerciseMuscle.trim(), is_custom: true, created_by_user_id: userId })
+      const exercise = await exercisesApi.create({
+        name: quickExerciseName.trim(),
+        muscle_group: quickExerciseMuscle,
+        is_custom: true,
+        created_by_user_id: userId,
+      })
+      setExercises((current) => [...current, exercise])
       setQuickExerciseName('')
-      setSelectedExercise(created.id)
-      setNotice({ type: 'success', text: 'Упражнение добавлено в справочник.' })
-      await load()
+      setSelectedExercise(exercise.id)
+      setNotice({ type: 'success', text: 'Упражнение создано и выбрано.' })
     } catch (error) {
       setNotice({ type: 'error', text: apiError(error, 'Не удалось создать упражнение.') })
+    } finally {
+      setIsSaving(false)
     }
   }
 
-  async function addExercise(event: FormEvent<HTMLFormElement>) {
+  async function addWorkoutExercise(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setNotice(null)
-    if (!event.currentTarget.reportValidity()) return
+    if (!ensureForm(event.currentTarget, setNotice)) return
     if (!selectedTemplate) {
-      setNotice({ type: 'error', text: 'Сначала создайте или выберите тренировку.' })
+      setNotice({ type: 'error', text: 'Сначала создайте или выберите шаблон тренировки.' })
       return
     }
     if (!selectedExercise) {
-      setNotice({ type: 'error', text: 'Выберите упражнение.' })
+      setNotice({ type: 'error', text: 'Выберите упражнение или создайте новое.' })
       return
     }
+
+    setIsSaving(true)
     try {
-      await workoutsApi.addExercise({ template_id: selectedTemplate, exercise_id: selectedExercise, sets, reps, weight, order_index: templateExercises.length + 1 })
+      const item = await workoutsApi.addExercise({
+        template_id: selectedTemplate,
+        exercise_id: selectedExercise,
+        sets,
+        reps,
+        weight,
+        order_index: templateExercises.length + 1,
+      })
+      setTemplateExercises((current) => [...current, item])
       setNotice({ type: 'success', text: 'Упражнение добавлено в тренировку.' })
-      await load()
     } catch (error) {
       setNotice({ type: 'error', text: apiError(error, 'Не удалось добавить упражнение в тренировку.') })
+    } finally {
+      setIsSaving(false)
     }
   }
 
-  async function startAndComplete(templateId: number) {
+  async function finishWorkout(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
     setNotice(null)
+    if (!ensureForm(event.currentTarget, setNotice)) return
+    if (!selectedTemplate) {
+      setNotice({ type: 'error', text: 'Сначала выберите шаблон тренировки.' })
+      return
+    }
+    if (!templateExercises.length) {
+      setNotice({ type: 'error', text: 'Добавьте хотя бы одно упражнение в шаблон.' })
+      return
+    }
+
+    setIsSaving(true)
     try {
-      const session = await workoutsApi.startSession(userId, templateId)
-      await workoutsApi.completeSession(session.id, duration)
-      setNotice({ type: 'success', text: 'Тренировка сохранена в истории.' })
-      await load()
+      const sessionRecord = await workoutsApi.startSession(userId, selectedTemplate)
+      await workoutsApi.completeSession(sessionRecord.id, duration)
+      await Promise.all(templateExercises.map((item) =>
+        workoutsApi.saveResult({
+          session_id: sessionRecord.id,
+          exercise_id: item.exercise_id,
+          sets_done: item.sets,
+          reps_done: item.reps,
+          weight_used: item.weight,
+        }).catch(() => undefined),
+      ))
+      setSessions(await workoutsApi.sessions(userId))
+      setNotice({ type: 'success', text: 'Тренировка записана в историю.' })
     } catch (error) {
       setNotice({ type: 'error', text: apiError(error, 'Не удалось завершить тренировку.') })
+    } finally {
+      setIsSaving(false)
     }
   }
 
   return (
     <section className="page">
-      <PageHeader title="Тренировки" subtitle="Создавайте шаблоны и сохраняйте завершенные занятия." />
+      <PageHeader title="Тренировки" subtitle="Создавайте шаблоны, добавляйте упражнения и фиксируйте завершенные занятия." />
       <NoticeBox notice={notice} />
       <div className="split-grid">
         <section className="panel">
-          <h2>Мои тренировки</h2>
+          <h2>Шаблоны</h2>
           <form className="inline-form two" onSubmit={createTemplate}>
-            <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Название тренировки" minLength={2} required />
-            <button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? <Loader2 className="spin" size={18} /> : <Plus size={18} />}Создать</button>
+            <label>
+              Название шаблона
+              <input value={templateNameInput} onChange={(event) => setTemplateNameInput(event.target.value)} placeholder="Например: Верх тела" minLength={2} required />
+            </label>
+            <button className="primary-button" type="submit" disabled={isSaving}><Plus size={18} />Создать</button>
           </form>
           {templates.length ? (
             <List>
               {templates.map((template) => (
-                <li key={template.id} className={selectedTemplate === template.id ? 'selected-row' : ''}>
+                <li key={template.id} className={template.id === selectedTemplate ? 'selected-row' : ''}>
                   <button type="button" onClick={() => setSelectedTemplate(template.id)}>{template.name}</button>
-                  <button type="button" className="secondary-button" onClick={() => void startAndComplete(template.id)}>Завершить</button>
+                  <span>{template.id === selectedTemplate ? 'выбран' : 'выбрать'}</span>
                 </li>
               ))}
             </List>
           ) : (
-            <EmptyState title="Шаблонов пока нет" text="Создайте первую тренировку и добавьте упражнения." />
+            <EmptyState title="Шаблонов пока нет" text="Создайте первый шаблон, затем добавьте в него упражнения." />
           )}
-          <label className="range-label">
-            Длительность: {duration} мин
-            <input type="range" min="15" max="120" value={duration} onChange={(event) => setDuration(Number(event.target.value))} />
-          </label>
         </section>
+
         <section className="panel">
-          <h2>Состав тренировки</h2>
-          <form className="form-grid compact" onSubmit={addExercise}>
+          <h2>Быстро создать упражнение</h2>
+          <form className="form-grid compact" onSubmit={createQuickExercise}>
             <label>
-              Упражнение
-              <select value={selectedExercise} onChange={(event) => setSelectedExercise(Number(event.target.value))} required>
-                {exercises.map((exercise) => <option key={exercise.id} value={exercise.id}>{exercise.name}</option>)}
+              Название
+              <input value={quickExerciseName} onChange={(event) => setQuickExerciseName(event.target.value)} placeholder="Например: Тяга гантели" minLength={2} required />
+            </label>
+            <label>
+              Группа
+              <select value={quickExerciseMuscle} onChange={(event) => setQuickExerciseMuscle(event.target.value)}>
+                {muscleGroups.map((group) => <option key={group} value={group}>{group}</option>)}
               </select>
             </label>
-            <NumberField label="Подходы" min={1} max={12} value={sets} onChange={setSets} />
-            <NumberField label="Повторы" min={1} max={100} value={reps} onChange={setReps} />
-            <NumberField label="Вес, кг" min={0} max={500} step={0.5} value={weight} onChange={setWeight} />
-            <button className="primary-button" type="submit">Добавить</button>
+            <button className="secondary-button" type="submit" disabled={isSaving}><Plus size={18} />Создать</button>
           </form>
-          <form className="inline-form two subtle-form" onSubmit={createQuickExercise}>
-            <input value={quickExerciseName} onChange={(event) => setQuickExerciseName(event.target.value)} placeholder="Добавить новое упражнение" minLength={2} required />
-            <input value={quickExerciseMuscle} onChange={(event) => setQuickExerciseMuscle(event.target.value)} placeholder="Группа мышц" minLength={2} required />
-            <button className="secondary-button" type="submit">В справочник</button>
+        </section>
+      </div>
+
+      <section className="panel">
+        <h2>Состав тренировки</h2>
+        <form className="form-grid workout-builder" onSubmit={addWorkoutExercise}>
+          <label>
+            Упражнение
+            <select value={selectedExercise} onChange={(event) => setSelectedExercise(Number(event.target.value))} required>
+              {!exercises.length ? <option value={0}>Создайте упражнение выше</option> : null}
+              {exercises.map((exercise) => <option key={exercise.id} value={exercise.id}>{exercise.name} · {exercise.muscle_group}</option>)}
+            </select>
+          </label>
+          <NumberField label="Подходы" min={1} max={20} value={sets} onChange={setSets} />
+          <NumberField label="Повторы" min={1} max={100} value={reps} onChange={setReps} />
+          <NumberField label="Вес, кг" min={0} max={500} step={0.5} value={weight} onChange={setWeight} />
+          <button className="primary-button" type="submit" disabled={isSaving}><Plus size={18} />Добавить в шаблон</button>
+        </form>
+        {templateExercises.length ? (
+          <List>
+            {templateExercises.map((item) => (
+              <li key={item.id}>
+                <strong>{exerciseName(exercises, item.exercise_id)}</strong>
+                <span>{item.sets} x {item.reps}, {item.weight} кг</span>
+              </li>
+            ))}
+          </List>
+        ) : (
+          <EmptyState title="В выбранном шаблоне нет упражнений" text="Выберите упражнение из каталога или создайте свое." />
+        )}
+      </section>
+
+      <div className="split-grid">
+        <section className="panel">
+          <h2>Завершить тренировку</h2>
+          <form className="inline-form two" onSubmit={finishWorkout}>
+            <NumberField label="Длительность, мин" min={1} max={360} value={duration} onChange={setDuration} />
+            <button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? <Loader2 className="spin" size={18} /> : null}Записать в историю</button>
           </form>
-          {templateExercises.length ? (
+        </section>
+        <section className="panel">
+          <h2>История</h2>
+          {sessions.filter((item) => item.completed_at).length ? (
             <List>
-              {templateExercises.map((item) => (
+              {sessions.filter((item) => item.completed_at).map((item) => (
                 <li key={item.id}>
-                  <strong>{exercises.find((exercise) => exercise.id === item.exercise_id)?.name ?? `Упражнение ${item.exercise_id}`}</strong>
-                  <span>{item.sets} x {item.reps}, {item.weight} кг</span>
+                  <strong>{templateName(templates, item.template_id)}</strong>
+                  <span>{item.duration_minutes || 0} мин</span>
                 </li>
               ))}
             </List>
           ) : (
-            <EmptyState title="Состав пуст" text="Выберите упражнение и добавьте его в выбранную тренировку." />
+            <EmptyState title="Пока нет записей" text="Завершенные тренировки будут появляться здесь." />
           )}
         </section>
       </div>
-      <section className="panel">
-        <h2>История</h2>
-        {sessions.length ? (
-          <List>{sessions.map((item) => <li key={item.id}><strong>Сессия #{item.id}</strong><span>{item.duration_minutes || 0} мин</span></li>)}</List>
-        ) : (
-          <EmptyState title="Пока нет записей" text="Завершенные тренировки будут появляться здесь." />
-        )}
-      </section>
     </section>
   )
 }
@@ -573,17 +685,18 @@ function NutritionPage() {
   const [grams, setGrams] = useState(100)
   const [mealType, setMealType] = useState('Обед')
   const [notice, setNotice] = useState<Notice>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   const load = useCallback(async () => {
     const [nextFoods, nextLogs, nextGoal] = await Promise.all([
       foodApi.list(userId),
       foodApi.logs(userId),
-      foodApi.goal(userId).catch(() => null),
+      foodApi.goal(userId),
     ])
     setFoods(nextFoods)
     setLogs(nextLogs)
     setGoal(nextGoal?.daily_goal ?? 2400)
-    setSelectedFood((current) => current || nextFoods[0]?.id || 0)
+    setSelectedFood((current) => (nextFoods.some((item) => item.id === current) ? current : nextFoods[0]?.id ?? 0))
   }, [userId])
 
   useEffect(() => {
@@ -593,7 +706,9 @@ function NutritionPage() {
   async function createFood(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setNotice(null)
-    if (!event.currentTarget.reportValidity()) return
+    if (!ensureForm(event.currentTarget, setNotice)) return
+
+    setIsSaving(true)
     try {
       const created = await foodApi.create({ name: foodName.trim(), calories: foodCalories, protein: foodProtein, fat: foodFat, carbs: foodCarbs, user_id: userId })
       setFoodName('')
@@ -602,46 +717,54 @@ function NutritionPage() {
       await load()
     } catch (error) {
       setNotice({ type: 'error', text: apiError(error, 'Не удалось добавить продукт.') })
+    } finally {
+      setIsSaving(false)
     }
   }
 
   async function addLog(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setNotice(null)
-    if (!event.currentTarget.reportValidity()) return
+    if (!ensureForm(event.currentTarget, setNotice)) return
     if (!selectedFood) {
       setNotice({ type: 'error', text: 'Сначала добавьте или выберите продукт.' })
       return
     }
+
+    setIsSaving(true)
     try {
       await foodApi.addLog({ user_id: userId, food_id: selectedFood, grams, meal_type: mealType.trim() })
       setNotice({ type: 'success', text: 'Прием пищи добавлен.' })
       await load()
     } catch (error) {
       setNotice({ type: 'error', text: apiError(error, 'Не удалось добавить запись питания.') })
+    } finally {
+      setIsSaving(false)
     }
   }
 
-  async function saveGoal() {
+  async function saveGoal(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
     setNotice(null)
-    if (goal < 900) {
-      setNotice({ type: 'error', text: 'Цель калорий должна быть не меньше 900 ккал.' })
-      return
-    }
+    if (!ensureForm(event.currentTarget, setNotice)) return
+
+    setIsSaving(true)
     try {
       await foodApi.setGoal({ user_id: userId, daily_goal: goal, date: new Date().toISOString().slice(0, 10) })
       setNotice({ type: 'success', text: 'Цель сохранена.' })
       await load()
     } catch (error) {
       setNotice({ type: 'error', text: apiError(error, 'Не удалось сохранить цель.') })
+    } finally {
+      setIsSaving(false)
     }
   }
 
   const totals = nutritionTotals(foods, logs)
   const chartData = [
-    { name: 'Белки', value: totals.protein },
-    { name: 'Жиры', value: totals.fat },
-    { name: 'Углеводы', value: totals.carbs },
+    { name: 'Белки', value: Math.round(totals.protein) },
+    { name: 'Жиры', value: Math.round(totals.fat) },
+    { name: 'Углеводы', value: Math.round(totals.carbs) },
   ]
 
   return (
@@ -654,6 +777,7 @@ function NutritionPage() {
         <Metric title="Жиры" value={`${Math.round(totals.fat)} г`} caption="за сегодня" />
         <Metric title="Углеводы" value={`${Math.round(totals.carbs)} г`} caption="за сегодня" />
       </div>
+
       <div className="split-grid">
         <section className="panel">
           <h2>Дневник</h2>
@@ -661,20 +785,27 @@ function NutritionPage() {
             <label>
               Продукт
               <select value={selectedFood} onChange={(event) => setSelectedFood(Number(event.target.value))} disabled={!foods.length} required>
-                {!foods.length ? <option value={0}>Сначала добавьте продукт</option> : null}
+                {!foods.length ? <option value={0}>Добавьте продукт ниже</option> : null}
                 {foods.map((food) => <option key={food.id} value={food.id}>{food.name}</option>)}
               </select>
             </label>
             <NumberField label="Граммы" min={1} max={5000} value={grams} onChange={setGrams} />
             <label>
               Прием пищи
-              <input value={mealType} onChange={(event) => setMealType(event.target.value)} minLength={2} required />
+              <select value={mealType} onChange={(event) => setMealType(event.target.value)}>
+                {mealTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+              </select>
             </label>
-            <button className="primary-button" type="submit" disabled={!foods.length}>Добавить</button>
+            <button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? <Loader2 className="spin" size={18} /> : null}Добавить</button>
           </form>
           {logs.length ? (
             <List>
-              {logs.map((log) => <li key={log.id}><strong>{foods.find((food) => food.id === log.food_id)?.name ?? `Продукт ${log.food_id}`}</strong><span>{log.grams} г, {log.meal_type}</span></li>)}
+              {logs.map((log) => (
+                <li key={log.id}>
+                  <strong>{foods.find((food) => food.id === log.food_id)?.name ?? `Продукт ${log.food_id}`}</strong>
+                  <span>{log.grams} г, {log.meal_type}</span>
+                </li>
+              ))}
             </List>
           ) : (
             <EmptyState title="Дневник пуст" text="Добавьте продукт и запишите первый прием пищи." />
@@ -687,9 +818,9 @@ function NutritionPage() {
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
-                <YAxis />
+                <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="value" fill="#2f7d68" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="value" name="Граммы" fill="#1f8a70" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -697,52 +828,101 @@ function NutritionPage() {
           )}
         </section>
       </div>
+
       <form className="panel form-grid compact" onSubmit={createFood}>
-        <input value={foodName} onChange={(event) => setFoodName(event.target.value)} placeholder="Название продукта" minLength={2} required />
+        <label>
+          Название продукта
+          <input value={foodName} onChange={(event) => setFoodName(event.target.value)} placeholder="Например: Рис отварной" minLength={2} required />
+        </label>
         <NumberField label="Ккал на 100 г" min={0} max={1200} value={foodCalories} onChange={setFoodCalories} />
         <NumberField label="Белки" min={0} max={100} step={0.1} value={foodProtein} onChange={setFoodProtein} />
         <NumberField label="Жиры" min={0} max={100} step={0.1} value={foodFat} onChange={setFoodFat} />
         <NumberField label="Углеводы" min={0} max={100} step={0.1} value={foodCarbs} onChange={setFoodCarbs} />
-        <button className="primary-button" type="submit"><Plus size={18} />Добавить продукт</button>
+        <button className="primary-button" type="submit" disabled={isSaving}><Plus size={18} />Добавить продукт</button>
       </form>
-      <section className="panel inline-form two">
+
+      <form className="panel inline-form two" onSubmit={saveGoal}>
         <NumberField label="Дневная цель, ккал" min={900} max={6000} value={goal} onChange={setGoal} />
-        <button className="secondary-button" type="button" onClick={() => void saveGoal()}>Сохранить цель</button>
-      </section>
+        <button className="secondary-button" type="submit" disabled={isSaving}>Сохранить цель</button>
+      </form>
     </section>
   )
 }
 
 function AiPage() {
   const { session } = useAuth()
+  const userId = session?.userId ?? ''
+  const [sex, setSex] = useState('male')
+  const [weight, setWeight] = useState(78)
+  const [level, setLevel] = useState('intermediate')
+  const [goal, setGoal] = useState('strength')
+  const [limitations, setLimitations] = useState('')
+  const [equipment, setEquipment] = useState('штанга, гантели')
+  const [calories, setCalories] = useState(2400)
+  const [diet, setDiet] = useState('balanced')
+  const [preferences, setPreferences] = useState('больше белка')
   const [workoutNote, setWorkoutNote] = useState<Notice>(null)
   const [mealNote, setMealNote] = useState<Notice>(null)
+  const [workoutResult, setWorkoutResult] = useState('')
+  const [mealResult, setMealResult] = useState('')
   const [isWorkoutLoading, setWorkoutLoading] = useState(false)
   const [isMealLoading, setMealLoading] = useState(false)
 
-  async function generateWorkout(event: FormEvent) {
+  useEffect(() => {
+    profileApi.get(userId).then((profile) => {
+      if (!profile) return
+      setSex(profile.sex)
+      setWeight(profile.weight)
+      setCalories(profile.daily_calories_goal)
+    }).catch(() => undefined)
+  }, [userId])
+
+  async function generateWorkout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setWorkoutNote(null)
+    setWorkoutResult('')
+    if (!ensureForm(event.currentTarget, setWorkoutNote)) return
+
     setWorkoutLoading(true)
     try {
-      const response = await aiApi.workout({ user_id: session?.userId ?? '', sex: 'male', weight: 78, level: 'intermediate', goal: 'strength', limitations: [], equipment: ['barbell', 'dumbbells'] })
-      setWorkoutNote({ type: 'success', text: response.note ?? response.error ?? 'План тренировки готов.' })
+      const payload: AiWorkoutRequest = {
+        user_id: userId,
+        sex,
+        weight,
+        level,
+        goal,
+        limitations: splitCsv(limitations),
+        equipment: splitCsv(equipment),
+      }
+      const response = await aiApi.workout(payload)
+      setWorkoutResult(formatAiResponse(response))
+      setWorkoutNote({ type: 'success', text: 'План тренировки получен.' })
     } catch (error) {
-      setWorkoutNote({ type: 'error', text: apiError(error, 'Сервис AI сейчас недоступен. Попробуйте позже.') })
+      setWorkoutNote({ type: 'error', text: apiError(error, 'AI-сервис сейчас недоступен. Попробуйте позже.') })
     } finally {
       setWorkoutLoading(false)
     }
   }
 
-  async function generateMeal(event: FormEvent) {
+  async function generateMeal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMealNote(null)
+    setMealResult('')
+    if (!ensureForm(event.currentTarget, setMealNote)) return
+
     setMealLoading(true)
     try {
-      const response = await aiApi.mealPlan({ user_id: session?.userId ?? '', calories: 2400, preferences: ['high protein'], diet: 'balanced' })
-      setMealNote({ type: 'success', text: response.note ?? response.error ?? 'План питания готов.' })
+      const payload: AiMealPlanRequest = {
+        user_id: userId,
+        calories,
+        diet,
+        preferences: splitCsv(preferences),
+      }
+      const response = await aiApi.mealPlan(payload)
+      setMealResult(formatAiResponse(response))
+      setMealNote({ type: 'success', text: 'План питания получен.' })
     } catch (error) {
-      setMealNote({ type: 'error', text: apiError(error, 'Сервис AI сейчас недоступен. Попробуйте позже.') })
+      setMealNote({ type: 'error', text: apiError(error, 'AI-сервис сейчас недоступен. Попробуйте позже.') })
     } finally {
       setMealLoading(false)
     }
@@ -750,21 +930,73 @@ function AiPage() {
 
   return (
     <section className="page">
-      <PageHeader title="AI-план" subtitle="Подготовьте тренировку или рацион на основе ваших целей." />
+      <PageHeader title="AI-план" subtitle="Сформируйте тренировку или рацион по вашим целям." />
       <div className="split-grid">
         <form className="panel feature-panel" onSubmit={generateWorkout}>
           <Sparkles size={28} />
           <h2>План тренировки</h2>
-          <p className="muted">Подойдет, когда нужно быстро собрать занятие под цель и доступное оборудование.</p>
+          <div className="form-grid compact">
+            <label>
+              Пол
+              <select value={sex} onChange={(event) => setSex(event.target.value)}>
+                <option value="male">Мужской</option>
+                <option value="female">Женский</option>
+              </select>
+            </label>
+            <NumberField label="Вес, кг" min={30} max={250} value={weight} onChange={setWeight} />
+            <label>
+              Уровень
+              <select value={level} onChange={(event) => setLevel(event.target.value)}>
+                <option value="beginner">Начальный</option>
+                <option value="intermediate">Средний</option>
+                <option value="advanced">Продвинутый</option>
+              </select>
+            </label>
+            <label>
+              Цель
+              <select value={goal} onChange={(event) => setGoal(event.target.value)}>
+                <option value="strength">Сила</option>
+                <option value="hypertrophy">Мышцы</option>
+                <option value="fat_loss">Снижение веса</option>
+                <option value="endurance">Выносливость</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            Ограничения
+            <input value={limitations} onChange={(event) => setLimitations(event.target.value)} placeholder="Например: колено, плечо" />
+          </label>
+          <label>
+            Оборудование
+            <input value={equipment} onChange={(event) => setEquipment(event.target.value)} placeholder="Например: штанга, гантели" />
+          </label>
           <button className="primary-button" type="submit" disabled={isWorkoutLoading}>{isWorkoutLoading ? <Loader2 className="spin" size={18} /> : null}Сгенерировать</button>
           <NoticeBox notice={workoutNote} />
+          {workoutResult ? <pre className="result-box">{workoutResult}</pre> : null}
         </form>
+
         <form className="panel feature-panel" onSubmit={generateMeal}>
           <Sparkles size={28} />
           <h2>План питания</h2>
-          <p className="muted">Поможет набросать рацион по калориям и предпочтениям.</p>
+          <div className="form-grid compact">
+            <NumberField label="Калории" min={900} max={6000} value={calories} onChange={setCalories} />
+            <label>
+              Тип рациона
+              <select value={diet} onChange={(event) => setDiet(event.target.value)}>
+                <option value="balanced">Сбалансированный</option>
+                <option value="high_protein">Высокобелковый</option>
+                <option value="low_carb">Меньше углеводов</option>
+                <option value="vegetarian">Вегетарианский</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            Предпочтения
+            <input value={preferences} onChange={(event) => setPreferences(event.target.value)} placeholder="Например: больше белка, без рыбы" />
+          </label>
           <button className="primary-button" type="submit" disabled={isMealLoading}>{isMealLoading ? <Loader2 className="spin" size={18} /> : null}Сгенерировать</button>
           <NoticeBox notice={mealNote} />
+          {mealResult ? <pre className="result-box">{mealResult}</pre> : null}
         </form>
       </div>
     </section>
@@ -778,17 +1010,22 @@ function CalculatorPage() {
   const [percentage, setPercentage] = useState(75)
   const [working, setWorking] = useState<WorkingWeightResponse | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
   async function calculate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setNotice(null)
-    if (!event.currentTarget.reportValidity()) return
+    if (!ensureForm(event.currentTarget, setNotice)) return
+
+    setIsLoading(true)
     try {
       const result = await calculatorApi.oneRm(weight, reps)
       setOneRm(result)
       setWorking(await calculatorApi.workingWeight(result.one_rm, percentage))
     } catch (error) {
       setNotice({ type: 'error', text: apiError(error, 'Не удалось рассчитать веса.') })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -807,7 +1044,7 @@ function CalculatorPage() {
           Интенсивность: {percentage}%
           <input type="range" min="50" max="100" value={percentage} onChange={(event) => setPercentage(Number(event.target.value))} />
         </label>
-        <button className="primary-button" type="submit">Рассчитать</button>
+        <button className="primary-button" type="submit" disabled={isLoading}>{isLoading ? <Loader2 className="spin" size={18} /> : null}Рассчитать</button>
       </form>
       {oneRm ? (
         <>
@@ -855,12 +1092,44 @@ function CardGrid({ children }: { children: ReactNode }) {
 }
 
 function NumberField({ label, value, onChange, min, max, step = 1 }: { label: string; value: number; onChange: (value: number) => void; min?: number; max?: number; step?: number }) {
+  const error = Number.isFinite(value) ? numberError(value, min, max) : 'Введите число.'
+
   return (
-    <label>
+    <label className={error ? 'invalid-field' : undefined}>
       {label}
-      <input type="number" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} required />
+      <input
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={Number.isFinite(value) ? value : ''}
+        onChange={(event) => onChange(Number(event.target.value))}
+        onBlur={() => onChange(clampNumber(value, min, max))}
+        aria-invalid={Boolean(error)}
+        required
+      />
+      {error ? <small className="field-error">{error}</small> : null}
     </label>
   )
+}
+
+function ensureForm(form: HTMLFormElement, setNotice: (notice: Notice) => void) {
+  if (form.reportValidity()) return true
+  setNotice({ type: 'error', text: 'Проверьте выделенные поля: значение отсутствует или выходит за допустимые пределы.' })
+  return false
+}
+
+function numberError(value: number, min?: number, max?: number) {
+  if (min !== undefined && value < min) return `Минимум: ${min}.`
+  if (max !== undefined && value > max) return `Максимум: ${max}.`
+  return ''
+}
+
+function clampNumber(value: number, min?: number, max?: number) {
+  if (!Number.isFinite(value)) return min ?? 0
+  if (min !== undefined && value < min) return min
+  if (max !== undefined && value > max) return max
+  return value
 }
 
 function nutritionTotals(foods: FoodItem[], logs: MealLog[]) {
@@ -883,7 +1152,8 @@ function nutritionTotals(foods: FoodItem[], logs: MealLog[]) {
 function sessionsToChart(sessions: WorkoutSession[]) {
   const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day) => ({ day, minutes: 0 }))
   for (const session of sessions) {
-    const date = new Date(session.completed_at ?? session.started_at)
+    if (!session.completed_at) continue
+    const date = new Date(session.completed_at)
     const index = (date.getDay() + 6) % 7
     days[index].minutes += session.duration_minutes || 0
   }
@@ -905,10 +1175,29 @@ function prettyWeightLabel(label: string) {
   return dictionary[label] ?? label
 }
 
+function exerciseName(exercises: Exercise[], id: number) {
+  return exercises.find((item) => item.id === id)?.name ?? `Упражнение ${id}`
+}
+
+function templateName(templates: WorkoutTemplate[], id: number) {
+  return templates.find((item) => item.id === id)?.name ?? `Тренировка ${id}`
+}
+
+function splitCsv(value: string) {
+  return value.split(',').map((item) => item.trim()).filter(Boolean)
+}
+
+function formatAiResponse(response: unknown) {
+  if (response && typeof response === 'object' && 'raw' in response && typeof response.raw === 'string') return response.raw
+  if (response && typeof response === 'object' && 'note' in response && typeof response.note === 'string') return response.note
+  return JSON.stringify(response, null, 2)
+}
+
 function apiError(error: unknown, fallback: string) {
   if (!(error instanceof Error)) return fallback
   try {
     const parsed = JSON.parse(error.message) as { error?: string; note?: string }
+    if (parsed.error?.includes('AI generation failed')) return 'AI-сервис вернул ошибку. Проверьте API_KEY на бэкенде или повторите позже.'
     return parsed.note ? `${parsed.note}: ${parsed.error ?? fallback}` : (parsed.error ?? fallback)
   } catch {
     return error.message || fallback

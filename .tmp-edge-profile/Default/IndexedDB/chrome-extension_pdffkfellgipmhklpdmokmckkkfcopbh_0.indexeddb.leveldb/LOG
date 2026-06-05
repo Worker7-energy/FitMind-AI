@@ -1,0 +1,6 @@
+2026/06/05-02:33:50.704 54a0 Creating DB C:\Users\gofan\Desktop\mobile_project\.tmp-edge-profile\Default\IndexedDB\chrome-extension_pdffkfellgipmhklpdmokmckkkfcopbh_0.indexeddb.leveldb since it was missing.
+2026/06/05-02:33:50.713 54a0 Reusing MANIFEST C:\Users\gofan\Desktop\mobile_project\.tmp-edge-profile\Default\IndexedDB\chrome-extension_pdffkfellgipmhklpdmokmckkkfcopbh_0.indexeddb.leveldb/MANIFEST-000001
+2026/06/05-02:33:50.727 38f4 Level-0 table #5: started
+2026/06/05-02:33:50.733 38f4 Level-0 table #5: 635 bytes OK
+2026/06/05-02:33:50.736 38f4 Delete type=0 #3
+2026/06/05-02:33:50.737 49c Manual compaction at level-0 from '\x00\x01\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x02\x00\x00\x00' @ 0 : 0; will stop at (end)
