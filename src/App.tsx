@@ -118,7 +118,7 @@ function ProtectedShell() {
 }
 
 function AuthPage() {
-  const { session, login, register } = useAuth()
+  const { session, login, register,  loginWithGoogle, loginWithYandex } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
@@ -158,8 +158,8 @@ function AuthPage() {
               <span>личный фитнес-кабинет</span>
             </div>
           </div>
-          <h1>Тренировки и питание без хаоса</h1>
-          <p>Ведите упражнения, рацион и прогресс в одном интерфейсе, который работает с вашим Go-бэкендом.</p>
+          <h2>Ваш персональный AI-тренер и помощник по питанию</h2>
+          <p>Планируйте тренировки, ведите дневник питания и получайте персональные рекомендации на основе ваших целей.</p>
         </div>
         <div className="auth-visual" style={{ backgroundImage: `url(${heroImage})` }} aria-hidden="true" />
         <div className="auth-form-box">
@@ -183,7 +183,7 @@ function AuthPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 type="password"
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                minLength={6}
+                minLength={8}
                 required
               />
             </label>
@@ -192,6 +192,20 @@ function AuthPage() {
               {isLoading ? <Loader2 className="spin" size={18} /> : null}
               {mode === 'login' ? 'Войти' : 'Создать аккаунт'}
             </button>
+            <button
+                type="button"
+                className="oauth-button google"
+                onClick={loginWithGoogle}
+              >
+                Войти через Google
+              </button>
+              <button
+                type="button"
+                className="oauth-button yandex"
+                onClick={loginWithYandex}
+              >
+                Войти через Яндекс
+              </button>
           </form>
         </div>
       </section>

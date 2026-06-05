@@ -8,6 +8,8 @@ type AuthContextValue = {
   isReady: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
+  loginWithGoogle: () => void
+  loginWithYandex: () => void
   logout: () => void
   refresh: () => Promise<AuthSession | null>
 }
@@ -49,6 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isReady,
       login: async (email: string, password: string) => setSession(await authApi.login(email, password)),
       register: async (email: string, password: string) => setSession(await authApi.register(email, password)),
+      loginWithGoogle: () => authApi.startGoogleLogin(),
+      loginWithYandex: () => authApi.startYandexLogin(),
       logout: () => setSession(null),
       refresh,
     }

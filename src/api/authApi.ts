@@ -84,4 +84,14 @@ export const authApi = {
     }
     await authRequest<void>(`/users/${user.user_id}`, { method: 'PATCH', body: user })
   },
+
+  startGoogleLogin() {
+    window.location.href =
+      `${import.meta.env.VITE_AUTH_API_URL}/auth/google/login`
+  },
+
+  startYandexLogin() {
+    window.location.href =
+      `${import.meta.env.VITE_AUTH_API_URL}/auth/yandex/login`
+  },
 }
