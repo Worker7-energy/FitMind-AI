@@ -57,10 +57,10 @@ func main() {
 	r.POST("/login", h.Login)
 	r.POST("/refresh", h.Refresh)
 
-	r.POST("/yandex/login", h.YandexLogin)
-	r.POST("/yandex/callback", h.YandexCallback)
-	r.POST("/google/login", h.GoogleLogin)
-	r.POST("/google/callback", h.GoogleCallback)
+	r.GET("/yandex/login", h.YandexLogin)
+	r.GET("/yandex/callback", h.YandexCallback)
+	r.GET("/google/login", h.GoogleLogin)
+	r.GET("/google/callback", h.GoogleCallback)
 
 	auth.GET("/users/:id", h.GetByID)
 	auth.GET("/users", h.GetAllUsers)

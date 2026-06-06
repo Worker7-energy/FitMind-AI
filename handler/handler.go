@@ -159,17 +159,17 @@ func (h *Handler) GoogleCallback(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	user, err := h.service.LoginWithGoogle(c.Request.Context(), guser.GoogleID, guser.Email)
+	result, err := h.service.LoginWithGoogle(c.Request.Context(), guser.GoogleID, guser.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"status":    "ok",
-		"google_id": guser.GoogleID,
-		"email":     guser.Email,
-		"user":      user,
-	})
+	q := url.Values{}
+	q.Set("access_token", result.AccessToken)
+	q.Set("refresh_token", result.RefreshToken)
+	q.Set("user_id", result.User.ID)
+	q.Set("email", result.User.Email)
+	c.Redirect(http.StatusFound, os.Getenv("FRONTEND_URL")+"?"+q.Encode())
 }
 
 func (h *Handler) GetAllUsers(c *gin.Context) {
@@ -210,15 +210,15 @@ func (h *Handler) YandexCallback(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	user, err := h.service.LoginWithYandex(c.Request.Context(), yuser.ID, yuser.Email)
+	result, err := h.service.LoginWithYandex(c.Request.Context(), yuser.ID, yuser.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"status":    "ok",
-		"yandex_id": yuser.ID,
-		"email":     yuser.Email,
-		"user":      user,
-	})
+	q := url.Values{}
+	q.Set("access_token", result.AccessToken)
+	q.Set("refresh_token", result.RefreshToken)
+	q.Set("user_id", result.User.ID)
+	q.Set("email", result.User.Email)
+	c.Redirect(http.StatusFound, os.Getenv("FRONTEND_URL")+"?"+q.Encode())
 }
