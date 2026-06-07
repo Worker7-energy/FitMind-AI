@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -41,4 +42,28 @@ func (r *RefreshStore) Get(ctx context.Context, refresh string) (string, string,
 }
 func (r *RefreshStore) Del(ctx context.Context, refresh string) error {
 	return r.client.Del(ctx, r.key(refresh)).Err()
+}
+func (r *RefreshStore) SaveCode(ctx context.Context, email string, code *big.Int) error {
+	codeString := fmt.Sprintf("%06d", code.Int64())
+	return r.client.Set(ctx, email, codeString, 10*time.Minute).Err()
+}
+func (r *RefreshStore) GetCode(ctx context.Context, email string) (string, error) {
+	code, err := r.client.Get(ctx, email).Result()
+	return code, err
+}
+func (r *RefreshStore) DeleteCode(ctx context.Context, email string) error {
+	return r.client.Del(ctx, email).Err()
+}
+func (r *RefreshStore) MarkVerified(ctx context.Context, email string) error {
+	return r.client.Set(ctx, "verified:"+email, "1", time.Hour).Err()
+}
+func (r *RefreshStore) IsVerified(ctx context.Context, email string) (bool, error) {
+	_, err := r.client.Get(ctx, "verified:"+email).Result()
+	if err == redis.Nil {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }

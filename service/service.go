@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fitnes_app/auth_module/email"
 	"fitnes_app/auth_module/jwt"
 	"fitnes_app/auth_module/models"
 	"fitnes_app/auth_module/redis"
 	"fitnes_app/auth_module/repository"
+	"math/big"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,8 +21,9 @@ import (
 )
 
 type Service struct {
-	repository    *repository.UserRepository
-	refreshStore  *redis.RefreshStore
+	repository   *repository.UserRepository
+	refreshStore *redis.RefreshStore
+	emailService *email.Email
 }
 
 type YandexService struct {
@@ -57,16 +60,27 @@ func NewGoogleService(clientID, clientSecret, redirectURL string) *GoogleService
 	}
 }
 
-func NewService(repository *repository.UserRepository, refreshStore *redis.RefreshStore) *Service {
+func NewService(repository *repository.UserRepository, refreshStore *redis.RefreshStore, emailService *email.Email) *Service {
 	return &Service{
 		repository:   repository,
 		refreshStore: refreshStore,
+		emailService: emailService,
 	}
 }
 func (s *Service) Register(ctx context.Context, email, password string) error {
 	existing, err := s.repository.GetByEmail(ctx, email)
-	if err == nil || existing != nil {
+	if err != nil {
+		return err
+	}
+	if existing != nil {
 		return errors.New("user already exists")
+	}
+	verified, err := s.refreshStore.IsVerified(ctx, email)
+	if err != nil {
+		return err
+	}
+	if !verified {
+		return errors.New("email not verified")
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -74,17 +88,18 @@ func (s *Service) Register(ctx context.Context, email, password string) error {
 	}
 	id := uuid.New().String()
 	user := &models.User{
-		ID:        id,
-		Email:     email,
-		Password:  string(hash),
-		Provider:  "local",
-		CreatedAt: time.Now(),
+		ID:         id,
+		Email:      email,
+		Password:   string(hash),
+		Provider:   "local",
+		IsVerified: true,
+		CreatedAt:  time.Now(),
 	}
 	return s.repository.Create(ctx, user)
 }
 func (s *Service) Login(ctx context.Context, email, password, deviceID string) (string, string, error) {
 	user, err := s.repository.GetByEmail(ctx, email)
-	if err != nil {
+	if err != nil || user == nil {
 		return "", "", errors.New("invalid credentials")
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
@@ -125,6 +140,9 @@ func (s *Service) Refresh(ctx context.Context, refresh, deviceID string) (string
 }
 func (s *Service) GetByID(ctx context.Context, id string) (models.User, error) {
 	return s.repository.GetByID(ctx, id)
+}
+func (s *Service) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+	return s.repository.GetByEmail(ctx, email)
 }
 func (s *Service) UpdateUser(ctx context.Context, userID, email, birthDate string, level int16, weight, height int64) error {
 	return s.repository.Update(ctx, userID, email, birthDate, level, weight, height)
@@ -320,4 +338,32 @@ func (s *Service) IssueTokens(_ context.Context, user *models.User) (*AuthResult
 
 func (s *Service) ValidateToken(tokenString string) (string, error) {
 	return jwt.ValidateAccessToken(tokenString, os.Getenv("secret"))
+}
+func (s *Service) GenerateCode() (*big.Int, error) {
+	return s.emailService.GenerateCode()
+}
+func (s *Service) SendVerification(ctx context.Context, code *big.Int, email string) error {
+	return s.emailService.SendVerification(ctx, code, email)
+}
+func (s *Service) VerifyEmail(ctx context.Context, email, code string) error {
+	stored, err := s.refreshStore.GetCode(ctx, email)
+	if err != nil {
+		return errors.New("code not found or expired")
+	}
+	if stored != code {
+		return errors.New("invalid code")
+	}
+	if err := s.refreshStore.DeleteCode(ctx, email); err != nil {
+		return err
+	}
+	return s.refreshStore.MarkVerified(ctx, email)
+}
+func (s *Service) SaveCode(ctx context.Context, email string, code *big.Int) error {
+	return s.refreshStore.SaveCode(ctx, email, code)
+}
+func (s *Service) GetCode(ctx context.Context, email string) (string, error) {
+	return s.refreshStore.GetCode(ctx, email)
+}
+func (s *Service) DeleteCode(ctx context.Context, email string) error {
+	return s.refreshStore.DeleteCode(ctx, email)
 }

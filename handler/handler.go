@@ -49,12 +49,12 @@ func (h *Handler) Login(c *gin.Context) {
 		DeviceID string `json:"device_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusUnauthorized, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	access, refresh, err := h.service.Login(c.Request.Context(), req.Email, req.Password, req.DeviceID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(200, gin.H{
@@ -68,12 +68,12 @@ func (h *Handler) Refresh(c *gin.Context) {
 		DeviceID string `json:"device_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	access, refresh, err := h.service.Refresh(c.Request.Context(), req.Refresh, req.DeviceID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(200, gin.H{
@@ -85,7 +85,7 @@ func (h *Handler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	user, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(400, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(200, user)
@@ -100,12 +100,12 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		Height    int64  `json:"height,omitempty"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	err := h.service.UpdateUser(c.Request.Context(), userID, req.Email, req.Birthdate, req.Level, req.Weight, req.Height)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusNoContent, nil)
@@ -175,7 +175,7 @@ func (h *Handler) GoogleCallback(c *gin.Context) {
 func (h *Handler) GetAllUsers(c *gin.Context) {
 	users, err := h.service.GetAllUsers(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, users)
@@ -221,4 +221,51 @@ func (h *Handler) YandexCallback(c *gin.Context) {
 	q.Set("user_id", result.User.ID)
 	q.Set("email", result.User.Email)
 	c.Redirect(http.StatusFound, os.Getenv("FRONTEND_URL")+"?"+q.Encode())
+}
+func (h *Handler) SendVerification(c *gin.Context) {
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	user, err := h.service.GetByEmail(c.Request.Context(), req.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка проверки пользователя"})
+		return
+	}
+	if user != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Пользователь уже существует"})
+		return
+	}
+	code, err := h.service.GenerateCode()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.service.SaveCode(c.Request.Context(), req.Email, code); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.service.SendVerification(c.Request.Context(), code, req.Email); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "Код подтверждения отправлен на ваш email"})
+}
+func (h *Handler) VerifyEmail(c *gin.Context) {
+	var req struct {
+		Email string `json:"email"`
+		Code  string `json:"code"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.service.VerifyEmail(c.Request.Context(), req.Email, req.Code); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "email успешно подтверждён"})
 }

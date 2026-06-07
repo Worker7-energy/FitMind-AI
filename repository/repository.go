@@ -30,7 +30,10 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 	filter := bson.M{"email": email}
 	err := r.Collection.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
-		return nil, errors.New("invalid credentials")
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
+		return nil, err
 	}
 	return &user, nil
 }

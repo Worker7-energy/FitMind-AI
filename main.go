@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fitnes_app/auth_module/email"
 	"fitnes_app/auth_module/handler"
 	"fitnes_app/auth_module/redis"
 	"fitnes_app/auth_module/repository"
@@ -35,8 +36,9 @@ func main() {
 	db := client.Database("users")
 	users := repository.NewRepository(db)
 	refreshStore := redis.NewRefreshStore(getEnv("REDIS_ADDR", "redis:6379"))
+	emailService := email.NewEmailService()
 
-	svc := service.NewService(users, refreshStore)
+	svc := service.NewService(users, refreshStore, emailService)
 
 	yandexSvc := service.NewYandexService(
 		os.Getenv("YANDEX_CLIENT_ID"),
@@ -65,6 +67,9 @@ func main() {
 	auth.GET("/users/:id", h.GetByID)
 	auth.GET("/users", h.GetAllUsers)
 	auth.PATCH("/users/:id", h.UpdateUser)
+
+	r.POST("/send-verification", h.SendVerification)
+	r.POST("/verify-email", h.VerifyEmail)
 
 	r.Run()
 }
