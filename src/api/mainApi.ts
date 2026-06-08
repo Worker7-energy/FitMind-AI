@@ -14,6 +14,8 @@ import type {
   WorkoutResult,
   WorkoutSession,
   WorkoutTemplate,
+  AiMealResponse,
+  AiWorkoutResponse,
 } from '../types'
 
 const todayKey = () => new Date().toISOString().slice(0, 10)
@@ -77,9 +79,12 @@ export const profileApi = {
 }
 
 export const exercisesApi = {
-  async list() {
+  async list(userId?: string) {
     if (useMocks) return uniqueExercises(readMockState().exercises)
-    return uniqueExercises(asArray(await mainRequest<Exercise[] | null>('/exercises')))
+    const url = userId 
+      ? `/exercises?user_id=${encodeURIComponent(userId)}`
+      : '/exercises'
+    return uniqueExercises(asArray(await mainRequest<Exercise[] | null>(url)))
   },
 
   async search(query: string) {
@@ -224,6 +229,14 @@ export const workoutsApi = {
     }
     await mainRequest('/workouts/results', { method: 'POST', body: input })
   },
+  
+    async deleteTemplate(templateId: number) {
+      await mainRequest(`/workouts/templates/${templateId}`, { method: 'DELETE' })
+    },
+
+    async deleteExerciseFromTemplate(workoutExerciseId: number) {
+      await mainRequest(`/workouts/exercises/${workoutExerciseId}`, { method: 'DELETE' })
+    },
 }
 
 export const foodApi = {
@@ -354,4 +367,161 @@ function workingWeights(oneRm: number) {
   ] as const
 
   return Object.fromEntries(keys.map(([key, value]) => [key, Math.round((oneRm * value) / 100 * 100) / 100]))
+}
+
+export async function saveAiWorkout(
+  userId: string,
+  workout: AiWorkoutResponse,
+  templateName = 'AI Тренировка',
+) {
+  const template = await workoutsApi.createTemplate(
+    userId,
+    `${templateName} ${new Date().toLocaleDateString()}`,
+  )
+
+  const catalog = await exercisesApi.list(userId)
+
+  for (let i = 0; i < workout.exercises.length; i++) {
+    const aiExercise = workout.exercises[i]
+
+    let exercise = catalog.find(
+      (item) =>
+        item.name.toLowerCase() === aiExercise.name.toLowerCase(),
+    )
+
+    if (!exercise) {
+      exercise = await exercisesApi.create({
+        name: aiExercise.name,
+        muscle_group: aiExercise.muscle_group,
+        is_custom: true,
+        created_by_user_id: userId,
+      })
+    }
+
+    await workoutsApi.addExercise({
+      template_id: template.id,
+      exercise_id: exercise.id,
+      sets: aiExercise.sets,
+      reps: aiExercise.reps,
+      weight: aiExercise.weight_kg,
+      order_index: i,
+    })
+  }
+
+  return template
+}
+
+export async function saveAiFood(
+  userId: string,
+  food: {
+    name: string
+    calories: number
+    protein: number
+    fat: number
+    carbs: number
+    grams: number
+  },
+  mealType: string,
+) {
+  const createdFood = await foodApi.create({
+    name: food.name,
+    calories: food.calories,
+    protein: food.protein,
+    fat: food.fat,
+    carbs: food.carbs,
+    user_id: userId,
+  })
+
+  await foodApi.addLog({
+    user_id: userId,
+    food_id: createdFood.id,
+    grams: food.grams,
+    meal_type: mealType,
+  })
+
+  return createdFood
+}
+
+export async function saveAiMealPlan(
+  userId: string,
+  mealPlan: AiMealResponse,
+) {
+  for (const meal of mealPlan.meals) {
+    for (const food of meal.foods) {
+      await saveAiFood(
+        userId,
+        food,
+        meal.meal_type,
+      )
+    }
+  }
+}
+
+export async function saveSingleAiExercise(
+  userId: string,
+  exercise: AiWorkoutResponse['exercises'][number],
+) {
+  // Проверяем, существует ли уже такое упражнение в каталоге
+  let catalogExercise = (
+    await exercisesApi.list(userId)
+  ).find(
+    (item) =>
+      item.name.toLowerCase() === exercise.name.toLowerCase(),
+  )
+
+  // Если не существует — создаём
+  if (!catalogExercise) {
+    catalogExercise = await exercisesApi.create({
+      name: exercise.name,
+      muscle_group: exercise.muscle_group,
+      is_custom: true,
+      created_by_user_id: userId,
+    })
+  }
+
+  // Возвращаем созданное/найденное упражнение (можно и ничего не возвращать)
+  return catalogExercise
+}
+
+export async function findFoodByName(
+  userId: string,
+  name: string,
+) {
+  const foods = await foodApi.list(userId)
+
+  return foods.find(
+    (item) =>
+      item.name.trim().toLowerCase() ===
+      name.trim().toLowerCase(),
+  )
+}
+
+// Проверка существования упражнения по названию
+export async function exerciseExists(userId: string, name: string): Promise<boolean> {
+  try {
+    const exercises = await exercisesApi.ensureCatalog(userId)
+    return exercises.some(ex => ex.name.toLowerCase() === name.toLowerCase())
+  } catch {
+    return false
+  }
+}
+
+// Проверка существования тренировки по названию
+export async function templateExists(userId: string, name: string): Promise<boolean> {
+  try {
+    const templates = await workoutsApi.templates(userId)
+    return templates.some(t => t.name.toLowerCase() === name.toLowerCase())
+  } catch {
+    return false
+  }
+}
+
+// Проверка существования продукта по названию
+export async function foodExists(userId: string, name: string): Promise<boolean> {
+  try {
+    const foods = await foodApi.list(userId)
+    return foods.some(f => f.name.toLowerCase() === name.toLowerCase())
+  } catch {
+    return false
+  }
 }

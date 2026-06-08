@@ -12,6 +12,8 @@ type AuthContextValue = {
   loginWithYandex: () => void
   logout: () => void
   refresh: () => Promise<AuthSession | null>
+  sendVerification: (email: string) => Promise<unknown>
+  verifyEmail: (email: string, code: string) => Promise<unknown>
 }
 
 const storageKey = 'fitmind.session'
@@ -22,6 +24,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const accessToken = params.get('access_token')
+    const refreshToken = params.get('refresh_token')
+    if (accessToken && refreshToken) {
+      const userId = params.get('user_id') ?? ''
+      const email = params.get('email') ?? ''
+      const deviceId = localStorage.getItem('fitmind.device_id') ?? crypto.randomUUID()
+      localStorage.setItem('fitmind.device_id', deviceId)
+      const oauthSession: AuthSession = { accessToken, refreshToken, deviceId, userId, email }
+      setSession(oauthSession)
+      window.history.replaceState({}, '', '/')
+      setIsReady(true)
+      return
+    }
+    
     const raw = localStorage.getItem(storageKey)
     if (raw) {
       try {
@@ -50,11 +67,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       isReady,
       login: async (email: string, password: string) => setSession(await authApi.login(email, password)),
-      register: async (email: string, password: string) => setSession(await authApi.register(email, password)),
+      register: async (email: string, password: string) => setSession(await authApi.registerWithPassword(email, password)),
       loginWithGoogle: () => authApi.startGoogleLogin(),
       loginWithYandex: () => authApi.startYandexLogin(),
       logout: () => setSession(null),
       refresh,
+      sendVerification: async (email: string) => authApi.sendVerification(email),
+      verifyEmail: async (email: string, code: string) => authApi.verifyEmail(email, code),
     }
   }, [isReady, session])
 

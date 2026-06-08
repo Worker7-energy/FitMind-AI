@@ -87,11 +87,40 @@ export const authApi = {
 
   startGoogleLogin() {
     window.location.href =
-      `${import.meta.env.VITE_AUTH_API_URL}/auth/google/login`
+      `${import.meta.env.VITE_AUTH_API_BASE}/google/login`
   },
 
   startYandexLogin() {
     window.location.href =
-      `${import.meta.env.VITE_AUTH_API_URL}/auth/yandex/login`
+      `${import.meta.env.VITE_AUTH_API_BASE}/yandex/login`
+  },
+
+  async sendVerification(email: string) {
+    return authRequest('/send-verification', {
+      method: 'POST',
+      body: { email },
+    })
+  },
+
+  async verifyEmail(email: string, code: string) {
+    return authRequest('/verify-email', {
+      method: 'POST',
+      body: { email, code },
+    })
+  },
+
+  async registerWithPassword(email: string, password: string): Promise<AuthSession> {
+    const deviceId = getDeviceId()
+    const data = await authRequest<{ access_token: string; refresh_token: string }>('/register', {
+      method: 'POST',
+      body: { email, password, device_id: deviceId },
+    })
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      deviceId,
+      userId: decodeUserId(data.access_token),
+      email,
+    }
   },
 }
