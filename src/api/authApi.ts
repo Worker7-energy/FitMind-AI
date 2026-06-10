@@ -1,5 +1,6 @@
 import { authRequest } from './client';
 import { AuthSession, User } from '../types';
+import { getAuthBase } from './apiConfig';
 
 function decodeUserId(token: string): string {
   const payload = token.split('.')[1];
@@ -57,5 +58,33 @@ export const authApi = {
 
   async updateUser(user: User): Promise<void> {
     await authRequest<void>(`/users/${user.user_id}`, { method: 'PATCH', body: user });
+  },
+
+  getGoogleOAuthUrl(): string {
+    const base = getAuthBase();
+    return `${base}/auth/google/login`;
+  },
+
+  getYandexOAuthUrl(): string {
+    const base = getAuthBase();
+    return `${base}/auth/yandex/login`;
+  },
+
+  extractTokensFromUrl(url: string): { accessToken?: string; refreshToken?: string; userId?: string; email?: string; error?: string } {
+    try {
+      const urlObj = new URL(url);
+      const accessToken = urlObj.searchParams.get('access_token');
+      const refreshToken = urlObj.searchParams.get('refresh_token');
+      const userId = urlObj.searchParams.get('user_id');
+      const email = urlObj.searchParams.get('email');
+      const error = urlObj.searchParams.get('error');
+      if (error) return { error };
+      if (accessToken && refreshToken) {
+        return { accessToken, refreshToken, userId: userId || undefined, email: email || undefined };
+      }
+      return {};
+    } catch {
+      return {};
+    }
   },
 };

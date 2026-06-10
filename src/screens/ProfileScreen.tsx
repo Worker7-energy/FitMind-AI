@@ -45,6 +45,61 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleNumberChange = (field: keyof FitnessProfile, value: string) => {
+    const num = value === '' ? 0 : Number(value);
+    setProfile({ ...profile, [field]: num });
+  };
+
+  const validateWeight = () => {
+    const min = 30;
+    if (profile.weight < min) {
+      setProfile({ ...profile, weight: min });
+      setNotice({ type: 'error', text: `Минимальное значение для поля "Вес" — ${min} кг.` });
+    }
+  };
+
+  const validateHeight = () => {
+    const min = 100;
+    if (profile.height < min) {
+      setProfile({ ...profile, height: min });
+      setNotice({ type: 'error', text: `Минимальное значение для поля "Рост" — ${min} см.` });
+    }
+  };
+
+  const validateAge = () => {
+    const min = 12;
+    if (profile.age < min) {
+      setProfile({ ...profile, age: min });
+      setNotice({ type: 'error', text: `Минимальное значение для поля "Возраст" — ${min} лет. ` });
+    }
+  };
+
+  const validateActivityLevel = () => {
+    const min = 1;
+    const max = 5;
+    let corrected = false;
+    let newValue = profile.activity_level;
+    if (profile.activity_level < min) {
+      newValue = min;
+      corrected = true;
+    } else if (profile.activity_level > max) {
+      newValue = max;
+      corrected = true;
+    }
+    if (corrected) {
+      setProfile({ ...profile, activity_level: newValue });
+      setNotice({ type: 'error', text: `Значение "Активность" должно быть в диапазоне от ${min} до ${max}.` });
+    }
+  };
+
+  const validateCaloriesGoal = () => {
+    const min = 900;
+    if (profile.daily_calories_goal < min) {
+      setProfile({ ...profile, daily_calories_goal: min });
+      setNotice({ type: 'error', text: `Минимальное значение для поля "Цель" — ${min} ккал.` });
+    }
+  };
+
   const bgColor = isDark ? '#111816' : '#f4f6f4';
   const cardBg = isDark ? '#17211f' : '#fff';
   const textColor = isDark ? '#edf5f1' : '#17211f';
@@ -70,8 +125,9 @@ export default function ProfileScreen() {
         <TextInput
           style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
           keyboardType="numeric"
-          value={String(profile.weight)}
-          onChangeText={v => setProfile({ ...profile, weight: Number(v) || 0 })}
+          value={profile.weight === 0 ? '' : String(profile.weight)}
+          onChangeText={value => handleNumberChange('weight', value)}
+          onBlur={validateWeight}
         />
       </View>
 
@@ -80,8 +136,9 @@ export default function ProfileScreen() {
         <TextInput
           style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
           keyboardType="numeric"
-          value={String(profile.height)}
-          onChangeText={v => setProfile({ ...profile, height: Number(v) || 0 })}
+          value={profile.height === 0 ? '' : String(profile.height)}
+          onChangeText={value => handleNumberChange('height', value)}
+          onBlur={validateHeight}
         />
       </View>
 
@@ -90,8 +147,9 @@ export default function ProfileScreen() {
         <TextInput
           style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
           keyboardType="numeric"
-          value={String(profile.age)}
-          onChangeText={v => setProfile({ ...profile, age: Number(v) || 0 })}
+          value={profile.age === 0 ? '' : String(profile.age)}
+          onChangeText={value => handleNumberChange('age', value)}
+          onBlur={validateAge}
         />
       </View>
 
@@ -118,8 +176,9 @@ export default function ProfileScreen() {
         <TextInput
           style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
           keyboardType="numeric"
-          value={String(profile.activity_level)}
-          onChangeText={v => setProfile({ ...profile, activity_level: Number(v) || 1 })}
+          value={profile.activity_level === 0 ? '' : String(profile.activity_level)}
+          onChangeText={value => handleNumberChange('activity_level', value)}
+          onBlur={validateActivityLevel}
         />
       </View>
 
@@ -128,8 +187,9 @@ export default function ProfileScreen() {
         <TextInput
           style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
           keyboardType="numeric"
-          value={String(profile.daily_calories_goal)}
-          onChangeText={v => setProfile({ ...profile, daily_calories_goal: Number(v) || 0 })}
+          value={profile.daily_calories_goal === 0 ? '' : String(profile.daily_calories_goal)}
+          onChangeText={value => handleNumberChange('daily_calories_goal', value)}
+          onBlur={validateCaloriesGoal}
         />
       </View>
 

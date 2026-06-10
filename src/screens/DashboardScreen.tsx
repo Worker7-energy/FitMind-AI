@@ -77,7 +77,17 @@ export default function DashboardScreen() {
   }, [sessions]);
 
   const calorieGoal = goal?.daily_goal ?? profile?.daily_calories_goal ?? 0;
-  const lastSession = sessions.filter(s => s.completed_at).slice(-1)[0];
+
+  const lastSession = useMemo(() => {
+    const completedSessions = sessions
+      .filter(s => s.completed_at)
+      .sort((a, b) => new Date(b.completed_at!).getTime() - new Date(a.completed_at!).getTime());
+    return completedSessions[0];
+  }, [sessions]);
+
+  const lastSessionTemplateName = lastSession
+    ? templates.find(t => t.id === lastSession.template_id)?.name || 'Удалённый шаблон'
+    : null;
 
   const bgColor = isDark ? '#111816' : '#f4f6f4';
   const cardBg = isDark ? '#17211f' : '#fff';
@@ -86,8 +96,10 @@ export default function DashboardScreen() {
   const borderColor = isDark ? '#2d413b' : '#dce5df';
 
   const screenWidth = Dimensions.get('window').width;
-  const chartWidth = screenWidth - 100;
-  const chartSpacing = Math.min(40, (chartWidth - 40) / (chartData.length - 1));
+  const chartWidth = screenWidth - 120; 
+  const chartSpacing = (chartWidth - 20) / (chartData.length - 1); 
+
+  const verticalLinesIndices = chartData.map((_, i) => i);
 
   return (
     <ScrollView
@@ -123,31 +135,35 @@ export default function DashboardScreen() {
       />
 
       <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
-        <Text style={[styles.sectionTitle, { color: textColor }]}>Активность за 7 дней</Text>
+        <Text style={[styles.sectionTitle, { color: textColor }]}>Активность текущей недели</Text>
         {sessions.length ? (
           <LineChart
             areaChart
-			curved
+            curved
             data={chartData}
             width={chartWidth}
-            height={200}
+            height={220}
             color="#2f7d68"
             startFillColor="#b9e6d5"
             endFillColor="#b9e6d5"
-            startOpacity={0.4}
-            endOpacity={0.1}
+            startOpacity={0.5}
+            endOpacity={0.4}
             spacing={chartSpacing}
+			initialSpacing={10}
             xAxisLabelTextStyle={{ color: mutedColor, fontSize: 10 }}
             yAxisTextStyle={{ color: mutedColor, fontSize: 10 }}
-            hideDataPoints={false}
             dataPointsColor="#2f7d68"
-            dataPointsRadius={2}
+            dataPointsRadius={3}
             xAxisColor={borderColor}
             yAxisColor={borderColor}
-            yAxisTextNumberOfLines={1}
             adjustToWidth
-            showValuesAsDataPointsText={false}
-			curveType={CurveType.QUADRATIC}
+            curveType={CurveType.QUADRATIC}
+            showVerticalLines={true}
+            verticalLinesColor={borderColor}
+            verticalLinesStrokeDashArray={[4, 4]}
+            verticalLinesIndices={verticalLinesIndices}
+            horizontalLinesColor={borderColor}
+            horizontalLinesStrokeDashArray={[4, 4]}
           />
         ) : (
           <EmptyState title="Пока нет тренировок" text="Когда вы завершите первую тренировку, здесь появится график." />
@@ -158,7 +174,9 @@ export default function DashboardScreen() {
         <Text style={[styles.sectionTitle, { color: textColor }]}>Последняя тренировка</Text>
         {lastSession ? (
           <View style={[styles.listItem, { borderBottomColor: borderColor }]}>
-            <Text style={[styles.listTitle, { color: textColor }]}>Сессия #{lastSession.id}</Text>
+            <Text style={[styles.listTitle, { color: textColor }]}>
+              Сессия #{lastSession.id} ({lastSessionTemplateName})
+            </Text>
             <Text style={[styles.listDetail, { color: mutedColor }]}>{lastSession.duration_minutes} мин</Text>
           </View>
         ) : (
@@ -174,16 +192,11 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 4 },
   header: { fontSize: 28, fontWeight: '700', marginBottom: 4 },
   subtitle: { fontSize: 14, marginBottom: 12 },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  halfWidth: {
-    flex: 1,
-  },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
+  halfWidth: { flex: 1 },
   section: { borderWidth: 1, borderRadius: 8, padding: 16 },
   sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
   listItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1 },
-  listTitle: { fontWeight: '600' },
+  listTitle: { fontWeight: '600', flexShrink: 1, marginRight: 8 },
   listDetail: { fontSize: 14 },
 });

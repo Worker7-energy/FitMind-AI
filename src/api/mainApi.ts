@@ -15,11 +15,9 @@ import {
   WorkoutTemplate,
 } from '../types';
 
-// Вспомогательная функция для приведения null/undefined к пустому массиву
 const asArray = <T>(value: T[] | null | undefined): T[] => value ?? [];
 
 
-// Profile
 export const profileApi = {
   async get(userId: string): Promise<FitnessProfile | null> {
     try {
@@ -37,7 +35,6 @@ export const profileApi = {
   },
 };
 
-// Exercises
 export const exercisesApi = {
   async list(): Promise<Exercise[]> {
     return asArray(await mainRequest<Exercise[] | null>('/exercises'));
@@ -58,7 +55,6 @@ export const exercisesApi = {
   },
 
   async ensureCatalog(_userId?: string): Promise<Exercise[]> {
-    // Бэкенд уже должен содержать базовый каталог, просто возвращаем список
     return this.list();
   },
 
@@ -67,7 +63,6 @@ export const exercisesApi = {
   },
 };
 
-// Workouts
 export const workoutsApi = {
   async templates(userId: string): Promise<WorkoutTemplate[]> {
     return asArray(
@@ -152,7 +147,6 @@ export const workoutsApi = {
   },
 };
 
-// Food, Nutrition
 const todayKey = (): string => new Date().toISOString().slice(0, 10);
 
 export const foodApi = {
@@ -221,7 +215,7 @@ export const foodApi = {
   },
 };
 
-// AI
+
 export const aiApi = {
   async workout(input: AiWorkoutRequest): Promise<{ note?: string; error?: string; exercises?: unknown[] }> {
     return mainRequest('/ai/generate-workout', { method: 'POST', body: input });
@@ -232,7 +226,7 @@ export const aiApi = {
   },
 };
 
-// Calculator
+
 export const calculatorApi = {
   async oneRm(weight: number, reps: number): Promise<OneRmResponse> {
     return mainRequest<OneRmResponse>(`/calculator/1rm?weight=${weight}&reps=${reps}`);

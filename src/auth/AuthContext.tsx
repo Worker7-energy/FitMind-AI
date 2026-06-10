@@ -9,12 +9,25 @@ type AuthContextValue = {
   isReady: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
+  loginWithToken: (accessToken: string, refreshToken: string, userId?: string, email?: string) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<AuthSession | null>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const STORAGE_KEY = 'fitmind.session';
+
+function decodeUserId(token: string): string {
+  const payload = token.split('.')[1];
+  if (!payload) return '';
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(normalized)) as Record<string, unknown>;
+    return String(json.user_id ?? json.sub ?? json.id ?? '');
+  } catch {
+    return '';
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -44,11 +57,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(next);
       return next;
     };
+
+    const loginWithToken = async (accessToken: string, refreshToken: string, userId?: string, email?: string) => {
+      const deviceId = 'mobile-' + Date.now();
+      const finalUserId = userId || decodeUserId(accessToken);
+      const finalEmail = email || '';
+      setSession({
+        accessToken,
+        refreshToken,
+        deviceId,
+        userId: finalUserId,
+        email: finalEmail,
+      });
+    };
+
     return {
       session,
       isReady,
       login: async (email, password) => setSession(await authApi.login(email, password)),
       register: async (email, password) => setSession(await authApi.register(email, password)),
+      loginWithToken,
       logout: () => setSession(null),
       refresh,
     };
