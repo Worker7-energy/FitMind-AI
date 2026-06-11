@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
+import { authApi } from '../api/authApi';
 import { useTheme } from '../contexts/ThemeContext';
 import NoticeBox from '../components/NoticeBox';
 import ApiConfigModal from '../components/ApiConfigModal';
@@ -20,11 +21,23 @@ export default function AuthScreen() {
   const [oauthModalVisible, setOauthModalVisible] = useState(false);
   const [oauthProvider, setOauthProvider] = useState<'google' | 'yandex'>('google');
 
+  const [verificationVisible, setVerificationVisible] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [pendingPassword, setPendingPassword] = useState('');
+  const [verificationNotice, setVerificationNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [sendingCode, setSendingCode] = useState(false);
+
   useEffect(() => {
     if (session) {
-      // navigation will handle
     }
   }, [session]);
+
+  useEffect(() => {
+    if (configModalVisible) {
+      setNotice(null);
+    }
+  }, [configModalVisible]);
 
   async function handleSubmit() {
     if (!email.trim() || !password) {
@@ -36,12 +49,45 @@ export default function AuthScreen() {
       return;
     }
     setNotice(null);
+
+    if (mode === 'login') {
+      setLoading(true);
+      try {
+        await login(email.trim(), password);
+      } catch (e: any) {
+        setNotice({ type: 'error', text: e.message || 'Ошибка' });
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setPendingEmail(email.trim());
+      setPendingPassword(password);
+      setVerificationNotice(null);
+      setSendingCode(true);
+      try {
+        await authApi.sendVerification(email.trim());
+        setVerificationVisible(true);
+      } catch (e: any) {
+        setNotice({ type: 'error', text: e.message || 'Не удалось отправить код' });
+      } finally {
+        setSendingCode(false);
+      }
+    }
+  }
+
+  async function handleVerify() {
+    if (!verificationCode.trim()) {
+      setVerificationNotice({ type: 'error', text: 'Введите полученный код' });
+      return;
+    }
+    setVerificationNotice(null);
     setLoading(true);
     try {
-      if (mode === 'login') await login(email.trim(), password);
-      else await register(email.trim(), password);
+      await authApi.verifyEmail(pendingEmail, verificationCode.trim());
+      await register(pendingEmail, pendingPassword);
+      setVerificationVisible(false);
     } catch (e: any) {
-      setNotice({ type: 'error', text: e.message || 'Ошибка' });
+      setVerificationNotice({ type: 'error', text: e.message || 'Неверный код или истек срок действия' });
     } finally {
       setLoading(false);
     }
@@ -57,6 +103,8 @@ export default function AuthScreen() {
   const textColor = isDark ? '#edf5f1' : '#17211f';
   const inputBorderColor = isDark ? '#2d413b' : '#dce5df';
   const segmentedBg = isDark ? '#1c2926' : '#e9f3ee';
+  const modalBg = isDark ? '#17211f' : '#fff';
+  const modalBorder = isDark ? '#2d413b' : '#dce5df';
 
   return (
     <>
@@ -103,8 +151,8 @@ export default function AuthScreen() {
               onChangeText={setPassword}
             />
             <NoticeBox notice={notice} />
-            <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{mode === 'login' ? 'Войти' : 'Создать аккаунт'}</Text>}
+            <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading || sendingCode}>
+              {loading || sendingCode ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{mode === 'login' ? 'Войти' : 'Создать аккаунт'}</Text>}
             </TouchableOpacity>
 
             <View style={styles.divider}>
@@ -125,6 +173,64 @@ export default function AuthScreen() {
           </View>
         </View>
       </ScrollView>
+
+
+      <Modal
+        visible={verificationVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setVerificationVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={[styles.modalContainer, { backgroundColor: modalBg, borderColor: modalBorder }]}>
+            <View style={styles.modalIconCircle}>
+              <Ionicons name="mail-outline" size={40} color="#2f7d68" />
+            </View>
+            <Text style={[styles.modalTitle, { color: textColor }]}>Подтверждение email</Text>
+            <Text style={[styles.modalEmail, { color: textColor, opacity: 0.7 }]}>{pendingEmail}</Text>
+            <View style={styles.modalHintContainer}>
+              <Ionicons name="information-circle-outline" size={16} color={textColor} opacity={0.6} />
+              <Text style={[styles.modalHint, { color: textColor, opacity: 0.7 }]}>Введите 6-значный код из письма</Text>
+            </View>
+            <TextInput
+              style={[styles.modalInput, { borderColor: inputBorderColor, color: textColor, backgroundColor: cardBg }]}
+              placeholder="000000"
+              placeholderTextColor="#999"
+              keyboardType="number-pad"
+              maxLength={6}
+              value={verificationCode}
+              onChangeText={setVerificationCode}
+              autoFocus
+            />
+            <NoticeBox notice={verificationNotice} />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={[styles.modalCancel, { borderColor: inputBorderColor }]} onPress={() => setVerificationVisible(false)}>
+                <Text style={[styles.modalCancelText, { color: textColor }]}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalConfirm} onPress={handleVerify} disabled={loading}>
+                {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.modalConfirmText}>Подтвердить</Text>}
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={styles.resendButton}
+              onPress={async () => {
+                setVerificationNotice(null);
+                try {
+                  await authApi.sendVerification(pendingEmail);
+                  setVerificationNotice({ type: 'success', text: 'Новый код отправлен!' });
+                } catch (e: any) {
+                  setVerificationNotice({ type: 'error', text: e.message || 'Не удалось отправить код' });
+                }
+              }}
+            >
+              <Text style={[styles.resendText, { color: '#2f7d68' }]}>Отправить код повторно</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <ApiConfigModal
         visible={configModalVisible}
@@ -171,4 +277,27 @@ const styles = StyleSheet.create({
   googleButton: { backgroundColor: '#4285F4' },
   yandexButton: { backgroundColor: '#FC3F1D' },
   oauthButtonText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalContainer: { width: '85%', borderRadius: 24, padding: 24, borderWidth: 1, alignItems: 'center', gap: 12 },
+  modalIconCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(47, 125, 104, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: { fontSize: 22, fontWeight: '700', textAlign: 'center' },
+  modalEmail: { fontSize: 14, textAlign: 'center' },
+  modalHintContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  modalHint: { fontSize: 13, textAlign: 'center' },
+  modalInput: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 18, textAlign: 'center', width: '100%', letterSpacing: 4 },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 8, width: '100%' },
+  modalCancel: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
+  modalCancelText: { fontWeight: '500', fontSize: 15 },
+  modalConfirm: { flex: 1, backgroundColor: '#2f7d68', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  modalConfirmText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  resendButton: { marginTop: 8, paddingVertical: 6 },
+  resendText: { fontSize: 13, fontWeight: '500', textDecorationLine: 'underline' },
 });

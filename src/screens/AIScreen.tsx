@@ -7,7 +7,11 @@ import { useAuth } from '../auth/AuthContext';
 import { aiApi, profileApi } from '../api/mainApi';
 import { FitnessProfile } from '../types';
 import NoticeBox from '../components/NoticeBox';
+import WorkoutPlanView from '../components/WorkoutPlanView';
+import MealPlanView from '../components/MealPlanView';
 import { useTheme } from '../contexts/ThemeContext';
+
+type TabType = 'workout' | 'meal';
 
 export default function AIScreen() {
   const { session } = useAuth();
@@ -15,26 +19,33 @@ export default function AIScreen() {
   const isDark = theme === 'dark';
   const userId = session?.userId ?? '';
 
+  const [activeTab, setActiveTab] = useState<TabType>('workout');
+
   const [workoutSex, setWorkoutSex] = useState('male');
-  const [workoutWeight, setWorkoutWeight] = useState<number>(75); 
+  const [workoutWeight, setWorkoutWeight] = useState<number>(75);
   const [workoutLevel, setWorkoutLevel] = useState('intermediate');
   const [workoutGoal, setWorkoutGoal] = useState('strength');
   const [limitations, setLimitations] = useState('');
   const [equipment, setEquipment] = useState('штанга, гантели');
-  const [workoutResult, setWorkoutResult] = useState('');
+  const [workoutResult, setWorkoutResult] = useState<any>(null);
   const [workoutNotice, setWorkoutNotice] = useState<any>(null);
   const [loadingWorkout, setLoadingWorkout] = useState(false);
 
   const [mealCalories, setMealCalories] = useState<number>(2300);
   const [mealDiet, setMealDiet] = useState('balanced');
   const [mealPreferences, setMealPreferences] = useState('');
-  const [mealResult, setMealResult] = useState('');
+  const [mealResult, setMealResult] = useState<any>(null);
   const [mealNotice, setMealNotice] = useState<any>(null);
   const [loadingMeal, setLoadingMeal] = useState(false);
 
   const [levelModalVisible, setLevelModalVisible] = useState(false);
   const [goalModalVisible, setGoalModalVisible] = useState(false);
   const [dietModalVisible, setDietModalVisible] = useState(false);
+
+  useEffect(() => {
+    setWorkoutNotice(null);
+    setMealNotice(null);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!userId) return;
@@ -108,7 +119,7 @@ export default function AIScreen() {
   const generateWorkout = async () => {
     if (!validateWorkout()) return;
     setWorkoutNotice(null);
-    setWorkoutResult('');
+    setWorkoutResult(null);
     setLoadingWorkout(true);
     try {
       const payload = {
@@ -121,11 +132,14 @@ export default function AIScreen() {
         equipment: equipment.split(',').map(s => s.trim()).filter(Boolean),
       };
       const res = await aiApi.workout(payload);
-      const formatted = formatAiResponse(res);
-      setWorkoutResult(formatted);
+      let parsed = res;
+      if (typeof res === 'string') {
+        try { parsed = JSON.parse(res); } catch { parsed = res; }
+      }
+      setWorkoutResult(parsed);
       setWorkoutNotice({ type: 'success', text: 'План тренировки получен.' });
     } catch (e: any) {
-      setWorkoutNotice({ type: 'error', text: 'Ошибка AI-сервиса' });
+      setWorkoutNotice({ type: 'error', text: e.message });
     } finally {
       setLoadingWorkout(false);
     }
@@ -142,7 +156,7 @@ export default function AIScreen() {
   const generateMeal = async () => {
     if (!validateMeal()) return;
     setMealNotice(null);
-    setMealResult('');
+    setMealResult(null);
     setLoadingMeal(true);
     try {
       const prefArray = mealPreferences.split(',').map(p => p.trim()).filter(Boolean);
@@ -153,24 +167,17 @@ export default function AIScreen() {
         preferences: prefArray,
       };
       const res = await aiApi.mealPlan(payload);
-      const formatted = formatAiResponse(res);
-      setMealResult(formatted);
+      let parsed = res;
+      if (typeof res === 'string') {
+        try { parsed = JSON.parse(res); } catch { parsed = res; }
+      }
+      setMealResult(parsed);
       setMealNotice({ type: 'success', text: 'План питания получен.' });
     } catch (e: any) {
       setMealNotice({ type: 'error', text: 'Ошибка AI-сервиса' });
     } finally {
       setLoadingMeal(false);
     }
-  };
-
-  const formatAiResponse = (response: any): string => {
-    if (response && typeof response === 'object') {
-      if (response.raw) return response.raw;
-      if (response.note) return response.note;
-      if (response.error) return response.error;
-      return JSON.stringify(response, null, 2);
-    }
-    return String(response);
   };
 
   const renderPickerModal = (
@@ -227,130 +234,196 @@ export default function AIScreen() {
         </Text>
       </View>
 
-      <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
-        <Text style={[styles.sectionTitle, { color: textColor }]}>План тренировки</Text>
+ 
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'workout' && styles.tabActive]}
+          onPress={() => setActiveTab('workout')}
+        >
+          <Text style={[styles.tabText, activeTab === 'workout' && styles.tabTextActive, { color: textColor }]}>
+            План{'\n'}тренировок
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'meal' && styles.tabActive]}
+          onPress={() => setActiveTab('meal')}
+        >
+          <Text style={[styles.tabText, activeTab === 'meal' && styles.tabTextActive, { color: textColor }]}>
+            План{'\n'}питания
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: mutedColor }]}>Пол</Text>
-          <View style={styles.segmented}>
+
+      {activeTab === 'workout' && (
+        <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>Параметры тренировки</Text>
+
+          <View style={styles.field}>
+            <Text style={[styles.label, { color: mutedColor }]}>Пол</Text>
+            <View style={styles.segmented}>
+              <TouchableOpacity
+                style={[styles.segBtn, { backgroundColor: segBg }, workoutSex === 'male' && styles.segActive]}
+                onPress={() => setWorkoutSex('male')}
+              >
+                <Text style={[styles.segText, { color: segTextColor }, workoutSex === 'male' && styles.segTextActive]}>Муж</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.segBtn, { backgroundColor: segBg }, workoutSex === 'female' && styles.segActive]}
+                onPress={() => setWorkoutSex('female')}
+              >
+                <Text style={[styles.segText, { color: segTextColor }, workoutSex === 'female' && styles.segTextActive]}>Жен</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.field}>
+            <Text style={[styles.label, { color: mutedColor }]}>Вес, кг</Text>
+            <TextInput
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
+              keyboardType="numeric"
+              value={workoutWeight === 0 ? '' : String(workoutWeight)}
+              onChangeText={handleWeightChange}
+              onBlur={validateWeight}
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={[styles.label, { color: mutedColor }]}>Уровень</Text>
             <TouchableOpacity
-              style={[styles.segBtn, { backgroundColor: segBg }, workoutSex === 'male' && styles.segActive]}
-              onPress={() => setWorkoutSex('male')}
+              style={[styles.pickerButton, { borderColor, backgroundColor: cardBg }]}
+              onPress={() => setLevelModalVisible(true)}
             >
-              <Text style={[styles.segText, { color: segTextColor }, workoutSex === 'male' && styles.segTextActive]}>Муж</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.segBtn, { backgroundColor: segBg }, workoutSex === 'female' && styles.segActive]}
-              onPress={() => setWorkoutSex('female')}
-            >
-              <Text style={[styles.segText, { color: segTextColor }, workoutSex === 'female' && styles.segTextActive]}>Жен</Text>
+              <Text style={{ color: textColor }}>{getLevelLabel(workoutLevel)}</Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: mutedColor }]}>Вес, кг</Text>
-          <TextInput
-            style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
-            keyboardType="numeric"
-            value={workoutWeight === 0 ? '' : String(workoutWeight)}
-            onChangeText={handleWeightChange}
-            onBlur={validateWeight}
-          />
-        </View>
+          <View style={styles.field}>
+            <Text style={[styles.label, { color: mutedColor }]}>Цель</Text>
+            <TouchableOpacity
+              style={[styles.pickerButton, { borderColor, backgroundColor: cardBg }]}
+              onPress={() => setGoalModalVisible(true)}
+            >
+              <Text style={{ color: textColor }}>{getGoalLabel(workoutGoal)}</Text>
+            </TouchableOpacity>
+          </View>
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: mutedColor }]}>Уровень</Text>
-          <TouchableOpacity
-            style={[styles.pickerButton, { borderColor, backgroundColor: cardBg }]}
-            onPress={() => setLevelModalVisible(true)}
-          >
-            <Text style={{ color: textColor }}>{getLevelLabel(workoutLevel)}</Text>
+          <View style={styles.field}>
+            <Text style={[styles.label, { color: mutedColor }]}>Ограничения</Text>
+            <TextInput
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
+              placeholder="например: колено, плечо"
+              placeholderTextColor={mutedColor}
+              value={limitations}
+              onChangeText={setLimitations}
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={[styles.label, { color: mutedColor }]}>Оборудование</Text>
+            <TextInput
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
+              placeholder="например: штанга, гантели"
+              placeholderTextColor={mutedColor}
+              value={equipment}
+              onChangeText={setEquipment}
+            />
+          </View>
+
+          <TouchableOpacity style={styles.primaryButton} onPress={generateWorkout} disabled={loadingWorkout}>
+            {loadingWorkout ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <ActivityIndicator color="#fff" size="small" />
+                <Text style={styles.primaryButtonText}>Выполняется генерация...</Text>
+              </View>
+            ) : (
+              <Text style={styles.primaryButtonText}>Сгенерировать</Text>
+            )}
           </TouchableOpacity>
-        </View>
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: mutedColor }]}>Цель</Text>
-          <TouchableOpacity
-            style={[styles.pickerButton, { borderColor, backgroundColor: cardBg }]}
-            onPress={() => setGoalModalVisible(true)}
-          >
-            <Text style={{ color: textColor }}>{getGoalLabel(workoutGoal)}</Text>
+          <NoticeBox notice={workoutNotice} />
+
+          {workoutResult !== null && (
+            <>
+              <View style={styles.divider} />
+              <Text style={[styles.resultHeader, { color: textColor }]}>Результат генерации</Text>
+              {typeof workoutResult === 'object' && workoutResult.exercises ? (
+                <WorkoutPlanView plan={workoutResult} />
+              ) : (
+                <Text style={[styles.resultBox, { color: textColor, backgroundColor: isDark ? '#1c2926' : '#f8faf8', borderColor }]}>
+                  {typeof workoutResult === 'string' ? workoutResult : JSON.stringify(workoutResult, null, 2)}
+                </Text>
+              )}
+            </>
+          )}
+        </View>
+      )}
+
+
+      {activeTab === 'meal' && (
+        <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>Параметры питания</Text>
+
+          <View style={styles.field}>
+            <Text style={[styles.label, { color: mutedColor }]}>Калории</Text>
+            <TextInput
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
+              keyboardType="numeric"
+              value={mealCalories === 0 ? '' : String(mealCalories)}
+              onChangeText={handleCaloriesChange}
+              onBlur={validateCalories}
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={[styles.label, { color: mutedColor }]}>Тип рациона</Text>
+            <TouchableOpacity
+              style={[styles.pickerButton, { borderColor, backgroundColor: cardBg }]}
+              onPress={() => setDietModalVisible(true)}
+            >
+              <Text style={{ color: textColor }}>{getDietLabel(mealDiet)}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.field}>
+            <Text style={[styles.label, { color: mutedColor }]}>Предпочтения</Text>
+            <TextInput
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
+              placeholder="например: больше белка, без рыбы"
+              placeholderTextColor={mutedColor}
+              value={mealPreferences}
+              onChangeText={setMealPreferences}
+            />
+          </View>
+
+          <TouchableOpacity style={styles.primaryButton} onPress={generateMeal} disabled={loadingMeal}>
+            {loadingMeal ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <ActivityIndicator color="#fff" size="small" />
+                <Text style={styles.primaryButtonText}>Выполняется генерация...</Text>
+              </View>
+            ) : (
+              <Text style={styles.primaryButtonText}>Сгенерировать</Text>
+            )}
           </TouchableOpacity>
+
+          <NoticeBox notice={mealNotice} />
+
+          {mealResult !== null && (
+            <>
+              <View style={styles.divider} />
+              <Text style={[styles.resultHeader, { color: textColor }]}>Результат генерации</Text>
+              {typeof mealResult === 'object' && mealResult.meals ? (
+                <MealPlanView plan={mealResult} />
+              ) : (
+                <Text style={[styles.resultBox, { color: textColor, backgroundColor: isDark ? '#1c2926' : '#f8faf8', borderColor }]}>
+                  {typeof mealResult === 'string' ? mealResult : JSON.stringify(mealResult, null, 2)}
+                </Text>
+              )}
+            </>
+          )}
         </View>
-
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: mutedColor }]}>Ограничения</Text>
-          <TextInput
-            style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
-            placeholder="например: колено, плечо"
-            placeholderTextColor={mutedColor}
-            value={limitations}
-            onChangeText={setLimitations}
-          />
-        </View>
-
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: mutedColor }]}>Оборудование</Text>
-          <TextInput
-            style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
-            placeholder="например: штанга, гантели"
-            placeholderTextColor={mutedColor}
-            value={equipment}
-            onChangeText={setEquipment}
-          />
-        </View>
-
-        <TouchableOpacity style={styles.primaryButton} onPress={generateWorkout} disabled={loadingWorkout}>
-          {loadingWorkout ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Сгенерировать</Text>}
-        </TouchableOpacity>
-
-        <NoticeBox notice={workoutNotice} />
-        {workoutResult ? <Text style={[styles.resultBox, { color: textColor, backgroundColor: isDark ? '#1c2926' : '#f8faf8', borderColor }]}>{workoutResult}</Text> : null}
-      </View>
-
-      <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
-        <Text style={[styles.sectionTitle, { color: textColor }]}>План питания</Text>
-
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: mutedColor }]}>Калории</Text>
-          <TextInput
-            style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
-            keyboardType="numeric"
-            value={mealCalories === 0 ? '' : String(mealCalories)}
-            onChangeText={handleCaloriesChange}
-            onBlur={validateCalories}
-          />
-        </View>
-
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: mutedColor }]}>Тип рациона</Text>
-          <TouchableOpacity
-            style={[styles.pickerButton, { borderColor, backgroundColor: cardBg }]}
-            onPress={() => setDietModalVisible(true)}
-          >
-            <Text style={{ color: textColor }}>{getDietLabel(mealDiet)}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: mutedColor }]}>Предпочтения</Text>
-          <TextInput
-            style={[styles.input, { borderColor, color: textColor, backgroundColor: cardBg }]}
-            placeholder="например: больше белка, без рыбы"
-            placeholderTextColor={mutedColor}
-            value={mealPreferences}
-            onChangeText={setMealPreferences}
-          />
-        </View>
-
-        <TouchableOpacity style={styles.primaryButton} onPress={generateMeal} disabled={loadingMeal}>
-          {loadingMeal ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Сгенерировать</Text>}
-        </TouchableOpacity>
-
-        <NoticeBox notice={mealNotice} />
-        {mealResult ? <Text style={[styles.resultBox, { color: textColor, backgroundColor: isDark ? '#1c2926' : '#f8faf8', borderColor }]}>{mealResult}</Text> : null}
-      </View>
+      )}
 
       {renderPickerModal(levelModalVisible, () => setLevelModalVisible(false), levelOptions, workoutLevel, setWorkoutLevel)}
       {renderPickerModal(goalModalVisible, () => setGoalModalVisible(false), goalOptions, workoutGoal, setWorkoutGoal)}
@@ -364,6 +437,33 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 16 },
   header: { fontSize: 28, fontWeight: '700', marginBottom: 4 },
   subtitle: { fontSize: 14, marginBottom: 12 },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'transparent',
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#dce5df',
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: '#2f7d68',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  tabTextActive: {
+    color: '#2f7d68',
+    fontWeight: '700',
+  },
   section: { borderWidth: 1, borderRadius: 8, padding: 16, gap: 12 },
   sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 4 },
   field: { gap: 4 },
@@ -377,6 +477,16 @@ const styles = StyleSheet.create({
   segTextActive: { color: '#fff' },
   primaryButton: { backgroundColor: '#2f7d68', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 4 },
   primaryButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  divider: {
+    height: 1,
+    backgroundColor: '#dce5df',
+    marginVertical: 16,
+  },
+  resultHeader: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
   resultBox: {
     marginTop: 8,
     padding: 12,

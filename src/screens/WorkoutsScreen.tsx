@@ -182,7 +182,7 @@ export default function WorkoutsScreen() {
 
   const handleAddExercise = async () => {
     if (!selectedExerciseId) {
-      Alert.alert('Ошибка', 'Пожалуйста, выберите упражнение из списка');
+      Alert.alert('Ошибка', 'Не выбрано упражнение');
       return;
     }
     const setsNum = Number(addSets);

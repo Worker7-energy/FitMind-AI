@@ -1,7 +1,7 @@
 import { getAuthBase, getMainBase } from './apiConfig';
 import { AuthSession } from '../types';
 
-const REQUEST_TIMEOUT_MS = 10000; 
+const REQUEST_TIMEOUT_MS = 80000; 
 
 type JsonBody = Record<string, unknown> | Array<unknown>;
 type ApiRequestInit = Omit<RequestInit, 'body'> & { body?: BodyInit | JsonBody };

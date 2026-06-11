@@ -4,7 +4,12 @@ import { WebView } from 'react-native-webview';
 import { authApi } from '../api/authApi';
 import { useAuth } from '../auth/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { getAuthBase } from '../api/apiConfig';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+
+const GOOGLE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36';
+
+const LOCALHOST_REDIRECT_URL = 'http://localhost:8080';
 
 interface OAuthWebViewProps {
   visible: boolean;
@@ -23,17 +28,36 @@ export default function OAuthWebView({ visible, provider, onClose }: OAuthWebVie
     ? authApi.getGoogleOAuthUrl() 
     : authApi.getYandexOAuthUrl();
 
-  const handleNavigationStateChange = async (navState: any) => {
-    const { url } = navState;
+  const replaceLocalhostWithBackend = (url: string): string => {
+    if (url.includes(LOCALHOST_REDIRECT_URL)) {
+      const backendBase = getAuthBase(); 
+      return url.replace(LOCALHOST_REDIRECT_URL, backendBase);
+    }
+    return url;
+  };
+
+  const handleShouldStartLoad = (request: any) => {
+    let url = request.url;
+    console.log('[OAuthWebView] Should start load:', url);
+
+    if (url.includes(LOCALHOST_REDIRECT_URL)) {
+      const newUrl = replaceLocalhostWithBackend(url);
+      console.log('[OAuthWebView] Redirecting to corrected URL:', newUrl);
+      setTimeout(() => {
+        webViewRef.current?.injectJavaScript(`window.location.replace('${newUrl}');`);
+      }, 0);
+      return false;
+    }
+
     const tokens = authApi.extractTokensFromUrl(url);
-    if (tokens.error) {
-      onClose();
-      return;
-    }
     if (tokens.accessToken && tokens.refreshToken) {
+      console.log('[OAuthWebView] Tokens found, closing WebView');
       onClose();
-      await loginWithToken(tokens.accessToken, tokens.refreshToken, tokens.userId, tokens.email);
+      loginWithToken(tokens.accessToken, tokens.refreshToken, tokens.userId, tokens.email);
+      return false;
     }
+
+    return true;
   };
 
   const bgColor = isDark ? '#111816' : '#f4f6f4';
@@ -60,13 +84,16 @@ export default function OAuthWebView({ visible, provider, onClose }: OAuthWebVie
         <WebView
           ref={webViewRef}
           source={{ uri: oAuthUrl }}
-          onNavigationStateChange={handleNavigationStateChange}
+          userAgent={provider === 'google' ? GOOGLE_USER_AGENT : undefined}
+          onShouldStartLoadWithRequest={handleShouldStartLoad}
           onLoadStart={() => setLoading(true)}
           onLoadEnd={() => setLoading(false)}
           style={[styles.webview, loading && { height: 0 }]}
           startInLoadingState
           sharedCookiesEnabled
           thirdPartyCookiesEnabled
+          javaScriptEnabled
+          domStorageEnabled
         />
       </View>
     </Modal>

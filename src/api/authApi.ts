@@ -60,14 +60,29 @@ export const authApi = {
     await authRequest<void>(`/users/${user.user_id}`, { method: 'PATCH', body: user });
   },
 
+  async sendVerification(email: string): Promise<void> {
+    await authRequest('/send-verification', {
+      method: 'POST',
+      body: { email },
+    });
+  },
+
+  async verifyEmail(email: string, code: string): Promise<void> {
+    await authRequest('/verify-email', {
+      method: 'POST',
+      body: { email, code },
+    });
+  },
+
+
   getGoogleOAuthUrl(): string {
     const base = getAuthBase();
-    return `${base}/auth/google/login`;
+    return `${base}/google/login`;
   },
 
   getYandexOAuthUrl(): string {
     const base = getAuthBase();
-    return `${base}/auth/yandex/login`;
+    return `${base}/yandex/login`;
   },
 
   extractTokensFromUrl(url: string): { accessToken?: string; refreshToken?: string; userId?: string; email?: string; error?: string } {

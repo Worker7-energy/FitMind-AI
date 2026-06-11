@@ -28,7 +28,7 @@ export default function ApiConfigModal({ visible, onClose, onSave }: ApiConfigMo
       const { authBase, mainBase } = getCurrentConfig();
       setAuthUrl(authBase);
       setMainUrl(mainBase);
-      setNotice(null);
+      setNotice(null); 
     }
   }, [visible]);
 
@@ -53,7 +53,8 @@ export default function ApiConfigModal({ visible, onClose, onSave }: ApiConfigMo
       setTimeout(() => {
         onClose();
         if (onSave) onSave();
-      }, 1000);
+        setNotice(null);
+      }, 100);
     } catch (error) {
       setNotice({ type: 'error', text: 'Не удалось сохранить настройки' });
     } finally {
@@ -61,12 +62,17 @@ export default function ApiConfigModal({ visible, onClose, onSave }: ApiConfigMo
     }
   };
 
+  const handleClose = () => {
+    setNotice(null);
+    onClose();
+  };
+
   return (
     <Modal
       visible={visible}
       animationType="slide"
       transparent={true}
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
@@ -95,7 +101,7 @@ export default function ApiConfigModal({ visible, onClose, onSave }: ApiConfigMo
           </View>
           {notice && <NoticeBox notice={notice} />}
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
+            <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={handleClose}>
               <Text style={styles.cancelButtonText}>Отмена</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave} disabled={loading}>
