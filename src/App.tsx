@@ -68,6 +68,7 @@ function App() {
 
 function ProtectedShell() {
   const { session, isReady, logout } = useAuth()
+  const userEmail = session?.email ?? ''
   const [theme, setTheme] = useState(() => localStorage.getItem('fitmind.theme') ?? 'light')
 
   useEffect(() => {
@@ -89,6 +90,9 @@ function ProtectedShell() {
             <strong>FitMind AI</strong>
             <span>тренировки, питание и прогресс</span>
           </div>
+        </div>
+        <div>
+          <h3>{userEmail}</h3>
         </div>
         <nav className="nav" aria-label="Основная навигация">
           {navItems.map((item) => (
@@ -442,7 +446,7 @@ function ProfilePage() {
 
   return (
     <section className="page">
-      <PageHeader title="Профиль" subtitle="Эти данные используются для расчетов калорий, нагрузки и AI-планов." />
+      <PageHeader title="Профиль" subtitle="Ваши данные для расчёта калорий и AI-рекомендаций" />
       <form className="panel form-grid" onSubmit={save}>
         <NumberField label="Вес, кг" min={30} max={250} value={profile.weight} onChange={(weight) => setProfile({ ...profile, weight })} />
         <NumberField label="Рост, см" min={100} max={230} value={profile.height} onChange={(height) => setProfile({ ...profile, height })} />
@@ -501,7 +505,7 @@ function ExercisesPage() {
 
   return (
     <section className="page">
-      <PageHeader title="Упражнения" subtitle="Каталог движений для шаблонов тренировок." />
+      <PageHeader title="Упражнения" subtitle="Каталог упражнений для шаблонов тренировок." />
       <NoticeBox notice={notice} />
       <div className="toolbar">
         <div className="search">

@@ -25,24 +25,3 @@ VITE_AUTH_API_BASE=/auth-api
 VITE_MAIN_API_BASE=/main-api
 ```
 
-Для локального демо без Go-сервисов можно явно включить мок-режим:
-
-```env
-VITE_USE_MOCKS=true
-```
-
-Vite proxy уже настроен для `/auth-api/*` и `/main-api/*`.
-
-Локальные сервисы лежат в:
-
-- `backend/auth`
-- `backend/main-module`
-
-AI endpoints в `main-module` требуют `API_KEY`. Если ключ не задан, интерфейс покажет понятную ошибку генерации.
-
-## Проверки
-
-```bash
-npm run lint
-npm run build
-```
