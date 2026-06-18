@@ -127,3 +127,41 @@ export type WorkingWeightResponse = {
   working_weight: number
   working_weights: Record<string, number>
 }
+
+
+export type AiWorkoutResponse = {
+  name?: string
+  goal?: string
+  duration_minutes: number
+  warmup?: string
+  cooldown?: string
+  notes?: string
+  exercises: {
+    name: string
+    muscle_group: string
+    sets: number
+    reps: number
+    weight_kg: number
+    notes: string
+  }[]
+}
+
+export type AiMealResponse = {
+  daily_calories: number
+  protein_g: number
+  fat_g: number
+  carbs_g: number
+  notes: string
+  meals: {
+    meal_type: string
+    total_calories: number
+    foods: {
+      name: string
+      grams: number
+      calories: number
+      protein: number
+      fat: number
+      carbs: number
+    }[]
+  }[]
+}

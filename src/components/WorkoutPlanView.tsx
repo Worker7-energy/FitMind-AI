@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface Exercise {
@@ -21,7 +21,13 @@ interface WorkoutPlan {
   notes: string;
 }
 
-export default function WorkoutPlanView({ plan }: { plan: WorkoutPlan }) {
+interface WorkoutPlanViewProps {
+  plan: WorkoutPlan;
+  onAddExercise?: (exercise: Exercise) => void;
+  onAddWholeWorkout?: () => void;
+}
+
+export default function WorkoutPlanView({ plan, onAddExercise, onAddWholeWorkout }: WorkoutPlanViewProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -52,6 +58,11 @@ export default function WorkoutPlanView({ plan }: { plan: WorkoutPlan }) {
               {ex.sets} x {ex.reps} · {ex.weight_kg} кг · {ex.muscle_group}
             </Text>
             <Text style={[styles.exerciseNotes, { color: mutedColor }]}>{ex.notes}</Text>
+            {onAddExercise && (
+              <TouchableOpacity style={styles.addButton} onPress={() => onAddExercise(ex)}>
+                <Text style={styles.addButtonText}>Добавить</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ))}
       </View>
@@ -66,6 +77,12 @@ export default function WorkoutPlanView({ plan }: { plan: WorkoutPlan }) {
           <Text style={[styles.sectionTitle, { color: textColor }]}>Примечания</Text>
           <Text style={[styles.sectionText, { color: mutedColor }]}>{plan.notes}</Text>
         </View>
+      )}
+
+      {onAddWholeWorkout && (
+        <TouchableOpacity style={styles.wholeButton} onPress={onAddWholeWorkout}>
+          <Text style={styles.wholeButtonText}>Добавить всю тренировку</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -125,5 +142,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
     fontStyle: 'italic',
+  },
+  addButton: {
+    marginTop: 8,
+    backgroundColor: '#2f7d68',
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  wholeButton: {
+    marginTop: 16,
+    backgroundColor: '#2f7d68',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  wholeButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });

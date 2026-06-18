@@ -13,6 +13,8 @@ import {
   WorkoutResult,
   WorkoutSession,
   WorkoutTemplate,
+  AiWorkoutResponse,
+  AiMealResponse,
 } from '../types';
 
 const asArray = <T>(value: T[] | null | undefined): T[] => value ?? [];
@@ -239,3 +241,115 @@ export const calculatorApi = {
     });
   },
 };
+
+
+export async function saveAiWorkout(
+  userId: string,
+  workout: AiWorkoutResponse,
+  templateName = 'AI Тренировка',
+) {
+  const template = await workoutsApi.createTemplate(
+    userId,
+    `${templateName} ${new Date().toLocaleDateString()}`,
+  );
+
+  const catalog = await exercisesApi.list();
+
+  for (let i = 0; i < workout.exercises.length; i++) {
+    const aiExercise = workout.exercises[i];
+
+    let exercise = catalog.find(
+      (item) =>
+        item.name.toLowerCase() === aiExercise.name.toLowerCase(),
+    );
+
+    if (!exercise) {
+      exercise = await exercisesApi.create({
+        name: aiExercise.name,
+        muscle_group: aiExercise.muscle_group,
+        is_custom: true,
+        created_by_user_id: userId,
+      });
+    }
+
+    await workoutsApi.addExercise({
+      template_id: template.id,
+      exercise_id: exercise.id,
+      sets: aiExercise.sets,
+      reps: aiExercise.reps,
+      weight: aiExercise.weight_kg,
+      order_index: i,
+    });
+  }
+
+  return template;
+}
+
+export async function saveAiFood(
+  userId: string,
+  food: {
+    name: string;
+    calories: number;
+    protein: number;
+    fat: number;
+    carbs: number;
+    grams: number;
+  },
+  mealType: string,
+) {
+  const createdFood = await foodApi.create({
+    name: food.name,
+    calories: food.calories,
+    protein: food.protein,
+    fat: food.fat,
+    carbs: food.carbs,
+    user_id: userId,
+  });
+
+  await foodApi.addLog({
+    user_id: userId,
+    food_id: createdFood.id,
+    grams: food.grams,
+    meal_type: mealType,
+  });
+
+  return createdFood;
+}
+
+export async function saveAiMealPlan(
+  userId: string,
+  mealPlan: AiMealResponse,
+) {
+  for (const meal of mealPlan.meals) {
+    for (const food of meal.foods) {
+      await saveAiFood(
+        userId,
+        food,
+        meal.meal_type,
+      );
+    }
+  }
+}
+
+export async function saveSingleAiExercise(
+  userId: string,
+  exercise: AiWorkoutResponse['exercises'][number],
+) {
+  let catalogExercise = (
+    await exercisesApi.list()
+  ).find(
+    (item) =>
+      item.name.toLowerCase() === exercise.name.toLowerCase(),
+  );
+
+  if (!catalogExercise) {
+    catalogExercise = await exercisesApi.create({
+      name: exercise.name,
+      muscle_group: exercise.muscle_group,
+      is_custom: true,
+      created_by_user_id: userId,
+    });
+  }
+
+  return catalogExercise;
+}

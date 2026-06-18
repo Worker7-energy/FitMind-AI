@@ -4,8 +4,9 @@ import {
   ActivityIndicator, Alert, Modal, FlatList
 } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
-import { aiApi, profileApi } from '../api/mainApi';
-import { FitnessProfile } from '../types';
+import { useCatalog } from '../contexts/CatalogContext';
+import { aiApi, profileApi, saveSingleAiExercise, saveAiFood, saveAiMealPlan, saveAiWorkout } from '../api/mainApi';
+import { FitnessProfile, AiWorkoutResponse, AiMealResponse } from '../types';
 import NoticeBox from '../components/NoticeBox';
 import WorkoutPlanView from '../components/WorkoutPlanView';
 import MealPlanView from '../components/MealPlanView';
@@ -18,6 +19,7 @@ export default function AIScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const userId = session?.userId ?? '';
+  const { refreshExercises, refreshFoods } = useCatalog(); 
 
   const [activeTab, setActiveTab] = useState<TabType>('workout');
 
@@ -27,20 +29,26 @@ export default function AIScreen() {
   const [workoutGoal, setWorkoutGoal] = useState('strength');
   const [limitations, setLimitations] = useState('');
   const [equipment, setEquipment] = useState('штанга, гантели');
-  const [workoutResult, setWorkoutResult] = useState<any>(null);
+  const [workoutResult, setWorkoutResult] = useState<AiWorkoutResponse | null>(null);
   const [workoutNotice, setWorkoutNotice] = useState<any>(null);
   const [loadingWorkout, setLoadingWorkout] = useState(false);
 
   const [mealCalories, setMealCalories] = useState<number>(2300);
   const [mealDiet, setMealDiet] = useState('balanced');
   const [mealPreferences, setMealPreferences] = useState('');
-  const [mealResult, setMealResult] = useState<any>(null);
+  const [mealResult, setMealResult] = useState<AiMealResponse | null>(null);
   const [mealNotice, setMealNotice] = useState<any>(null);
   const [loadingMeal, setLoadingMeal] = useState(false);
 
   const [levelModalVisible, setLevelModalVisible] = useState(false);
   const [goalModalVisible, setGoalModalVisible] = useState(false);
   const [dietModalVisible, setDietModalVisible] = useState(false);
+
+  const [addedExercises, setAddedExercises] = useState<Set<string>>(new Set());
+  const [addedFoods, setAddedFoods] = useState<Set<string>>(new Set());
+  const [addedMeals, setAddedMeals] = useState<Set<string>>(new Set());
+  const [isWorkoutAdded, setIsWorkoutAdded] = useState(false);
+  const [isMealPlanAdded, setIsMealPlanAdded] = useState(false);
 
   useEffect(() => {
     setWorkoutNotice(null);
@@ -120,6 +128,8 @@ export default function AIScreen() {
     if (!validateWorkout()) return;
     setWorkoutNotice(null);
     setWorkoutResult(null);
+    setAddedExercises(new Set());
+    setIsWorkoutAdded(false);
     setLoadingWorkout(true);
     try {
       const payload = {
@@ -136,7 +146,7 @@ export default function AIScreen() {
       if (typeof res === 'string') {
         try { parsed = JSON.parse(res); } catch { parsed = res; }
       }
-      setWorkoutResult(parsed);
+      setWorkoutResult(parsed as AiWorkoutResponse);
       setWorkoutNotice({ type: 'success', text: 'План тренировки получен.' });
     } catch (e: any) {
       setWorkoutNotice({ type: 'error', text: e.message });
@@ -157,6 +167,9 @@ export default function AIScreen() {
     if (!validateMeal()) return;
     setMealNotice(null);
     setMealResult(null);
+    setAddedFoods(new Set());
+    setAddedMeals(new Set());
+    setIsMealPlanAdded(false);
     setLoadingMeal(true);
     try {
       const prefArray = mealPreferences.split(',').map(p => p.trim()).filter(Boolean);
@@ -171,12 +184,94 @@ export default function AIScreen() {
       if (typeof res === 'string') {
         try { parsed = JSON.parse(res); } catch { parsed = res; }
       }
-      setMealResult(parsed);
+      setMealResult(parsed as AiMealResponse);
       setMealNotice({ type: 'success', text: 'План питания получен.' });
     } catch (e: any) {
       setMealNotice({ type: 'error', text: 'Ошибка AI-сервиса' });
     } finally {
       setLoadingMeal(false);
+    }
+  };
+
+  const handleAddExercise = async (exercise: any) => {
+    const key = `${exercise.name}_${exercise.sets}_${exercise.reps}_${exercise.weight_kg}`;
+    if (addedExercises.has(key)) {
+      Alert.alert('Упражнение уже добавлено');
+      return;
+    }
+    try {
+      await saveSingleAiExercise(userId, exercise);
+      setAddedExercises(prev => new Set(prev).add(key));
+      await refreshExercises();
+      setWorkoutNotice({ type: 'success', text: 'Упражнение добавлено в каталог' });
+    } catch (e: any) {
+      setWorkoutNotice({ type: 'error', text: e.message });
+    }
+  };
+
+  const handleAddWholeWorkout = async () => {
+    if (isWorkoutAdded) {
+      Alert.alert('Тренировка уже добавлена');
+      return;
+    }
+    if (!workoutResult) return;
+    try {
+      await saveAiWorkout(userId, workoutResult);
+      setIsWorkoutAdded(true);
+      await refreshExercises(); 
+      setWorkoutNotice({ type: 'success', text: 'Тренировка добавлена в шаблоны' });
+    } catch (e: any) {
+      setWorkoutNotice({ type: 'error', text: e.message });
+    }
+  };
+
+  const handleAddFood = async (food: any, mealType: string) => {
+    const key = `${food.name}_${food.grams}`;
+    if (addedFoods.has(key)) {
+      Alert.alert('Продукт уже добавлен сегодня');
+      return;
+    }
+    try {
+      await saveAiFood(userId, food, mealType);
+      setAddedFoods(prev => new Set(prev).add(key));
+      await refreshFoods(); 
+      setMealNotice({ type: 'success', text: 'Продукт добавлен в дневник' });
+    } catch (e: any) {
+      setMealNotice({ type: 'error', text: e.message });
+    }
+  };
+
+  const handleAddMeal = async (meal: any) => {
+    const key = meal.meal_type;
+    if (addedMeals.has(key)) {
+      Alert.alert('Приём пищи уже добавлен');
+      return;
+    }
+    try {
+      for (const food of meal.foods) {
+        await saveAiFood(userId, food, meal.meal_type);
+      }
+      setAddedMeals(prev => new Set(prev).add(key));
+      await refreshFoods(); 
+      setMealNotice({ type: 'success', text: `Приём пищи "${meal.meal_type}" добавлен` });
+    } catch (e: any) {
+      setMealNotice({ type: 'error', text: e.message });
+    }
+  };
+
+  const handleAddWholeMealPlan = async () => {
+    if (isMealPlanAdded) {
+      Alert.alert('Рацион уже добавлен');
+      return;
+    }
+    if (!mealResult) return;
+    try {
+      await saveAiMealPlan(userId, mealResult);
+      setIsMealPlanAdded(true);
+      await refreshFoods();
+      setMealNotice({ type: 'success', text: 'Рацион добавлен в дневник' });
+    } catch (e: any) {
+      setMealNotice({ type: 'error', text: e.message });
     }
   };
 
@@ -234,7 +329,6 @@ export default function AIScreen() {
         </Text>
       </View>
 
- 
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'workout' && styles.tabActive]}
@@ -253,7 +347,6 @@ export default function AIScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-
 
       {activeTab === 'workout' && (
         <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
@@ -348,7 +441,11 @@ export default function AIScreen() {
               <View style={styles.divider} />
               <Text style={[styles.resultHeader, { color: textColor }]}>Результат генерации</Text>
               {typeof workoutResult === 'object' && workoutResult.exercises ? (
-                <WorkoutPlanView plan={workoutResult} />
+                <WorkoutPlanView
+                  plan={workoutResult}
+                  onAddExercise={handleAddExercise}
+                  onAddWholeWorkout={handleAddWholeWorkout}
+                />
               ) : (
                 <Text style={[styles.resultBox, { color: textColor, backgroundColor: isDark ? '#1c2926' : '#f8faf8', borderColor }]}>
                   {typeof workoutResult === 'string' ? workoutResult : JSON.stringify(workoutResult, null, 2)}
@@ -358,7 +455,6 @@ export default function AIScreen() {
           )}
         </View>
       )}
-
 
       {activeTab === 'meal' && (
         <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
@@ -414,7 +510,12 @@ export default function AIScreen() {
               <View style={styles.divider} />
               <Text style={[styles.resultHeader, { color: textColor }]}>Результат генерации</Text>
               {typeof mealResult === 'object' && mealResult.meals ? (
-                <MealPlanView plan={mealResult} />
+                <MealPlanView
+                  plan={mealResult}
+                  onAddFood={handleAddFood}
+                  onAddMeal={handleAddMeal}
+                  onAddWholeMealPlan={handleAddWholeMealPlan}
+                />
               ) : (
                 <Text style={[styles.resultBox, { color: textColor, backgroundColor: isDark ? '#1c2926' : '#f8faf8', borderColor }]}>
                   {typeof mealResult === 'string' ? mealResult : JSON.stringify(mealResult, null, 2)}

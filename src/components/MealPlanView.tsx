@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface FoodItem {
@@ -26,7 +26,14 @@ interface MealPlan {
   notes: string;
 }
 
-export default function MealPlanView({ plan }: { plan: MealPlan }) {
+interface MealPlanViewProps {
+  plan: MealPlan;
+  onAddFood?: (food: FoodItem, mealType: string) => void;
+  onAddMeal?: (meal: Meal) => void;
+  onAddWholeMealPlan?: () => void;
+}
+
+export default function MealPlanView({ plan, onAddFood, onAddMeal, onAddWholeMealPlan }: MealPlanViewProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -49,6 +56,11 @@ export default function MealPlanView({ plan }: { plan: MealPlan }) {
           <View style={styles.mealHeader}>
             <Text style={[styles.mealTitle, { color: textColor }]}>{meal.meal_type}</Text>
             <Text style={[styles.mealCalories, { color: mutedColor }]}>{meal.total_calories} ккал</Text>
+            {onAddMeal && (
+              <TouchableOpacity style={styles.addMealButton} onPress={() => onAddMeal(meal)}>
+                <Text style={styles.addMealButtonText}>+ Приём</Text>
+              </TouchableOpacity>
+            )}
           </View>
           {meal.foods.map((food, fidx) => (
             <View key={fidx} style={styles.foodRow}>
@@ -59,6 +71,11 @@ export default function MealPlanView({ plan }: { plan: MealPlan }) {
               <Text style={[styles.foodMacros, { color: mutedColor }]}>
                 Б: {food.protein}г · Ж: {food.fat}г · У: {food.carbs}г
               </Text>
+              {onAddFood && (
+                <TouchableOpacity style={styles.addFoodButton} onPress={() => onAddFood(food, meal.meal_type)}>
+                  <Text style={styles.addFoodButtonText}>Добавить</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))}
         </View>
@@ -68,6 +85,12 @@ export default function MealPlanView({ plan }: { plan: MealPlan }) {
         <View style={[styles.notesSection, { borderTopColor: borderColor }]}>
           <Text style={[styles.notesText, { color: mutedColor }]}>{plan.notes}</Text>
         </View>
+      )}
+
+      {onAddWholeMealPlan && (
+        <TouchableOpacity style={styles.wholeButton} onPress={onAddWholeMealPlan}>
+          <Text style={styles.wholeButtonText}>Добавить весь рацион</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -116,6 +139,17 @@ const styles = StyleSheet.create({
   mealCalories: {
     fontSize: 14,
   },
+  addMealButton: {
+    backgroundColor: '#2f7d68',
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  addMealButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 12,
+  },
   foodRow: {
     marginBottom: 8,
     paddingLeft: 8,
@@ -130,6 +164,19 @@ const styles = StyleSheet.create({
   foodMacros: {
     fontSize: 11,
   },
+  addFoodButton: {
+    marginTop: 4,
+    backgroundColor: '#2f7d68',
+    borderRadius: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    alignSelf: 'flex-start',
+  },
+  addFoodButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 12,
+  },
   notesSection: {
     marginTop: 12,
     paddingTop: 12,
@@ -138,5 +185,17 @@ const styles = StyleSheet.create({
   notesText: {
     fontSize: 13,
     fontStyle: 'italic',
+  },
+  wholeButton: {
+    marginTop: 16,
+    backgroundColor: '#2f7d68',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  wholeButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });
